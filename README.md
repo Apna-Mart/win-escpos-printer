@@ -333,6 +333,11 @@ try {
 
 MIT
 
+## Links
+
+- Original NPM Package: https://www.npmjs.com/package/@mixgeeker/node-escpos-win
+- Original GitHub Repository: https://github.com/MixGeeker/ESCPOS-for-Windows
+
 ## Issues and Support
 
 If you encounter any issues, please report them on GitHub Issues.
