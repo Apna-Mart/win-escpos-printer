@@ -1,17 +1,17 @@
 let Printer;
+let isWindowsPlatform = process.platform === 'win32';
+
 try {
-    if (process.platform === 'win32') {
+    if (isWindowsPlatform) {
         Printer = require('bindings')('escpos_printer').Printer;
     } else {
-        throw new Error('This package only works on Windows platforms');
+        Printer = null;
     }
 } catch (error) {
-    if (process.platform !== 'win32') {
-        console.warn('Warning: @mixgeeker/node-escpos-win only works on Windows platforms. Native printer functionality will not be available.');
-        Printer = null;
-    } else {
-        throw error;
+    if (isWindowsPlatform) {
+        console.warn('Warning: Failed to load native printer module on Windows. Native functionality will not be available.');
     }
+    Printer = null;
 }
 
 const iconv = require('iconv-lite');
@@ -19,17 +19,23 @@ const Jimp = require('jimp');
 
 class ESCPOSPrinter {
     constructor(printerName) {
-        if (!Printer) {
-            throw new Error('ESCPOSPrinter is only supported on Windows platforms');
-        }
-        this.printer = new Printer(printerName);
+        this.printerName = printerName;
         this.currentCharset = 'ASCII'; // 默认ASCII字符集
+        this.isNativeSupported = !!Printer;
+        
+        if (this.isNativeSupported) {
+            this.printer = new Printer(printerName);
+        } else {
+            console.warn(`ESCPOSPrinter: Native printer functionality not available on ${process.platform}. Running in compatibility mode.`);
+            this.printer = null;
+        }
     }
 
     // 获取系统打印机列表
     static getPrinterList() {
         if (!Printer) {
-            throw new Error('getPrinterList is only supported on Windows platforms');
+            console.warn('getPrinterList: Native printer functionality not available. Returning empty list.');
+            return [];
         }
         return Printer.getPrinterList();
     }
@@ -38,6 +44,12 @@ class ESCPOSPrinter {
         if (!(data instanceof Buffer)) {
             data = Buffer.from(data);
         }
+        
+        if (!this.isNativeSupported) {
+            console.log(`ESCPOSPrinter: Would print ${data.length} bytes to printer '${this.printerName}' (compatibility mode)`);
+            return true;
+        }
+        
         return this.printer.print(data);
     }
 
@@ -68,6 +80,11 @@ class ESCPOSPrinter {
     }
 
     close() {
+        if (!this.isNativeSupported) {
+            console.log(`ESCPOSPrinter: Would close printer '${this.printerName}' (compatibility mode)`);
+            return true;
+        }
+        
         return this.printer.close();
     }
 
