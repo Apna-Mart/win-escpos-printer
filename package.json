@@ -52,8 +52,8 @@
     "index.d.ts",
     "src/",
     "binding.gyp",
+    "README-CN.md",
     "README.md",
-    "README-EN.md",
     "LICENSE"
   ]
 }
