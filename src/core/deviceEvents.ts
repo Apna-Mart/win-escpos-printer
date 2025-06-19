@@ -35,7 +35,7 @@ export class DeviceEventEmitter {
 	}
 
 	emitDeviceConnect(device: TerminalDevice): void {
-		this.connectCallbacks.forEach(callback => {
+		this.connectCallbacks.forEach((callback) => {
 			try {
 				callback(device);
 			} catch (error) {
@@ -45,7 +45,7 @@ export class DeviceEventEmitter {
 	}
 
 	emitDeviceDisconnect(deviceId: string): void {
-		this.disconnectCallbacks.forEach(callback => {
+		this.disconnectCallbacks.forEach((callback) => {
 			try {
 				callback(deviceId);
 			} catch (error) {
@@ -58,7 +58,7 @@ export class DeviceEventEmitter {
 
 	emitDeviceData(deviceId: string, data: string): void {
 		const callbacks = this.dataCallbacks.get(deviceId) || [];
-		callbacks.forEach(callback => {
+		callbacks.forEach((callback) => {
 			try {
 				callback(deviceId, data);
 			} catch (error) {
@@ -68,7 +68,7 @@ export class DeviceEventEmitter {
 	}
 
 	emitDeviceError(deviceId: string, error: Error): void {
-		this.errorCallbacks.forEach(callback => {
+		this.errorCallbacks.forEach((callback) => {
 			try {
 				callback(deviceId, error);
 			} catch (error) {

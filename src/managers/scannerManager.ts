@@ -1,8 +1,8 @@
 import { BarcodeScannerAdapter } from '../adaptor/barcodeScannerAdaptor';
 import type { ReadableDevice } from '../adaptor/deviceAdaptor';
-import type { DeviceManager } from './deviceManager';
-import type { TerminalDevice, BaudRate } from '../core/types';
 import { updateDeviceConfig } from '../core/deviceConfig';
+import type { BaudRate, TerminalDevice } from '../core/types';
+import type { DeviceManager } from './deviceManager';
 
 export type ScanDataCallback = (data: string) => void;
 
@@ -19,16 +19,21 @@ export class ScannerManager {
 		this.setupEventListeners();
 	}
 
-	async scanFromDevice(deviceId: string, callback: ScanDataCallback): Promise<void> {
+	async scanFromDevice(
+		deviceId: string,
+		callback: ScanDataCallback,
+	): Promise<void> {
 		// Add callback to persistent storage
 		if (!this.persistentCallbacks.has(deviceId)) {
 			this.persistentCallbacks.set(deviceId, []);
 		}
-		this.persistentCallbacks.get(deviceId)!.push(callback);
+		this.persistentCallbacks.get(deviceId)?.push(callback);
 
 		const device = this.deviceManager.getDevice(deviceId);
 		if (!device) {
-			console.log(`Device ${deviceId} not found, callback queued for when device connects`);
+			console.log(
+				`Device ${deviceId} not found, callback queued for when device connects`,
+			);
 			return; // Don't throw error, just queue the callback
 		}
 
@@ -42,7 +47,9 @@ export class ScannerManager {
 	async scanFromDefault(callback: ScanDataCallback): Promise<void> {
 		const defaultScannerId = this.deviceManager.getDefaultDeviceId('scanner');
 		if (!defaultScannerId) {
-			console.log('No default scanner found, callback queued for when default scanner connects');
+			console.log(
+				'No default scanner found, callback queued for when default scanner connects',
+			);
 			// Store callback with a special key for "default scanner when it becomes available"
 			this.storeCallbackForWhenDefaultConnects('scanner', callback);
 			return;
@@ -51,7 +58,10 @@ export class ScannerManager {
 		await this.scanFromDevice(defaultScannerId, callback);
 	}
 
-	private storeCallbackForWhenDefaultConnects(deviceType: 'scanner', callback: ScanDataCallback): void {
+	private storeCallbackForWhenDefaultConnects(
+		deviceType: 'scanner',
+		callback: ScanDataCallback,
+	): void {
 		this.pendingDefaultCallbacks.push(callback);
 	}
 
@@ -107,12 +117,14 @@ export class ScannerManager {
 	private async startScanningDevice(device: TerminalDevice): Promise<void> {
 		try {
 			await this.ensureScannerAdapter(device);
-			
+
 			if (!this.activeScanners.has(device.id)) {
 				// Set up data callback that routes to all persistent callbacks
-				this.deviceManager.getEventEmitter().onDeviceData(device.id, (_, data) => {
-					this.handleScanData(device.id, data);
-				});
+				this.deviceManager
+					.getEventEmitter()
+					.onDeviceData(device.id, (_, data) => {
+						this.handleScanData(device.id, data);
+					});
 
 				this.activeScanners.add(device.id);
 				console.log(`Started scanning from device: ${device.id}`);
@@ -126,7 +138,7 @@ export class ScannerManager {
 	private handleScanData(deviceId: string, data: string): void {
 		// Send to device-specific callbacks (includes default scanner callbacks since they're stored by device ID)
 		const deviceCallbacks = this.persistentCallbacks.get(deviceId) || [];
-		deviceCallbacks.forEach(callback => {
+		deviceCallbacks.forEach((callback) => {
 			try {
 				callback(data);
 			} catch (error) {
@@ -135,7 +147,7 @@ export class ScannerManager {
 		});
 
 		// Send to global scan callbacks
-		this.globalScanCallbacks.forEach(callback => {
+		this.globalScanCallbacks.forEach((callback) => {
 			try {
 				callback(data);
 			} catch (error) {
@@ -144,7 +156,10 @@ export class ScannerManager {
 		});
 	}
 
-	async ensureScannerAdapter(device: TerminalDevice, baudRate?: BaudRate): Promise<void> {
+	async ensureScannerAdapter(
+		device: TerminalDevice,
+		baudRate?: BaudRate,
+	): Promise<void> {
 		if (this.scannerAdapters.has(device.id)) {
 			return; // Adapter already exists
 		}
@@ -165,7 +180,9 @@ export class ScannerManager {
 
 			adapter.onError((error) => {
 				console.error(`Scanner adapter error for ${device.id}:`, error);
-				this.deviceManager.getEventEmitter().emitDeviceError(device.id, new Error(String(error)));
+				this.deviceManager
+					.getEventEmitter()
+					.emitDeviceError(device.id, new Error(String(error)));
 				this.closeScannerAdapter(device.id);
 			});
 
@@ -179,7 +196,10 @@ export class ScannerManager {
 			this.scannerAdapters.set(device.id, adapter);
 			console.log(`Scanner adapter created for ${device.id}`);
 		} catch (error) {
-			console.error(`Failed to create scanner adapter for ${device.id}:`, error);
+			console.error(
+				`Failed to create scanner adapter for ${device.id}:`,
+				error,
+			);
 			throw error;
 		}
 	}
@@ -223,14 +243,17 @@ export class ScannerManager {
 	// Setup a global scan data callback (for any scanner)
 	onScanData(callback: ScanDataCallback): void {
 		this.globalScanCallbacks.push(callback);
-		
+
 		// Start scanning from any existing scanners
 		const scanners = this.deviceManager.getDevicesByType('scanner');
 		scanners.forEach(async (scanner) => {
 			try {
 				await this.startScanningDevice(scanner);
 			} catch (error) {
-				console.error(`Failed to start scanning from existing scanner ${scanner.id}:`, error);
+				console.error(
+					`Failed to start scanning from existing scanner ${scanner.id}:`,
+					error,
+				);
 			}
 		});
 	}
@@ -241,40 +264,62 @@ export class ScannerManager {
 			if (device.meta.deviceType === 'scanner') {
 				try {
 					// Check if this device has persistent callbacks waiting
-					const hasCallbacks = this.persistentCallbacks.has(device.id) && 
+					const hasCallbacks =
+						this.persistentCallbacks.has(device.id) &&
 						this.persistentCallbacks.get(device.id)!.length > 0;
-					
+
 					// Check if this is the default scanner and has pending default callbacks
-					const isDefaultWithPendingCallbacks = device.meta.setToDefault && 
-						this.pendingDefaultCallbacks.length > 0;
-					
+					const isDefaultWithPendingCallbacks =
+						device.meta.setToDefault && this.pendingDefaultCallbacks.length > 0;
+
 					// Check if there are global callbacks waiting
 					const hasGlobalCallbacks = this.globalScanCallbacks.length > 0;
 
 					// If this device becomes the default scanner, move pending callbacks to device-specific storage
-					if (device.meta.setToDefault && this.pendingDefaultCallbacks.length > 0) {
+					if (
+						device.meta.setToDefault &&
+						this.pendingDefaultCallbacks.length > 0
+					) {
 						if (!this.persistentCallbacks.has(device.id)) {
 							this.persistentCallbacks.set(device.id, []);
 						}
-						this.persistentCallbacks.get(device.id)!.push(...this.pendingDefaultCallbacks);
+						this.persistentCallbacks
+							.get(device.id)!
+							.push(...this.pendingDefaultCallbacks);
 						this.pendingDefaultCallbacks = []; // Clear pending callbacks
-						console.log(`Moved ${this.persistentCallbacks.get(device.id)!.length} pending callbacks to default scanner: ${device.id}`);
+						console.log(
+							`Moved ${this.persistentCallbacks.get(device.id)!.length} pending callbacks to default scanner: ${device.id}`,
+						);
 					}
 
 					// Start scanning if device has callbacks waiting or is default with setToDefault=true
-					if (hasCallbacks || isDefaultWithPendingCallbacks || hasGlobalCallbacks || device.meta.setToDefault) {
+					if (
+						hasCallbacks ||
+						isDefaultWithPendingCallbacks ||
+						hasGlobalCallbacks ||
+						device.meta.setToDefault
+					) {
 						await this.startScanningDevice(device);
-						
+
 						if (isDefaultWithPendingCallbacks) {
-							console.log(`Auto-started scanning from new default scanner: ${device.id}`);
+							console.log(
+								`Auto-started scanning from new default scanner: ${device.id}`,
+							);
 						} else if (hasCallbacks) {
-							console.log(`Auto-resumed scanning from reconnected scanner: ${device.id}`);
+							console.log(
+								`Auto-resumed scanning from reconnected scanner: ${device.id}`,
+							);
 						} else if (device.meta.setToDefault) {
-							console.log(`Auto-started scanning from default scanner: ${device.id}`);
+							console.log(
+								`Auto-started scanning from default scanner: ${device.id}`,
+							);
 						}
 					}
 				} catch (error) {
-					console.error(`Failed to auto-start scanning from ${device.id}:`, error);
+					console.error(
+						`Failed to auto-start scanning from ${device.id}:`,
+						error,
+					);
 				}
 			}
 		});
@@ -283,7 +328,9 @@ export class ScannerManager {
 		this.deviceManager.onDeviceDisconnect(async (deviceId) => {
 			this.activeScanners.delete(deviceId);
 			await this.closeScannerAdapter(deviceId);
-			console.log(`Scanner ${deviceId} disconnected, callbacks preserved for reconnection`);
+			console.log(
+				`Scanner ${deviceId} disconnected, callbacks preserved for reconnection`,
+			);
 		});
 	}
 }

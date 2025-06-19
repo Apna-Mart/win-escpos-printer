@@ -1,8 +1,8 @@
-import { ThermalPrinterAdapter } from '../adaptor/thermalPrinterAdaptor';
 import type { WritableDevice } from '../adaptor/deviceAdaptor';
-import type { DeviceManager } from './deviceManager';
-import type { TerminalDevice } from '../core/types';
+import { ThermalPrinterAdapter } from '../adaptor/thermalPrinterAdaptor';
 import { saveDeviceConfig, updateDeviceConfig } from '../core/deviceConfig';
+import type { TerminalDevice } from '../core/types';
+import type { DeviceManager } from './deviceManager';
 
 export class PrinterManager {
 	private deviceManager: DeviceManager;
@@ -13,7 +13,11 @@ export class PrinterManager {
 		this.setupEventListeners();
 	}
 
-	async printToDevice(deviceId: string, data: string, isImage = false): Promise<boolean> {
+	async printToDevice(
+		deviceId: string,
+		data: string,
+		isImage = false,
+	): Promise<boolean> {
 		const device = this.deviceManager.getDevice(deviceId);
 		if (!device || device.meta.deviceType !== 'printer') {
 			throw new Error(`Device ${deviceId} is not a printer or not found`);
@@ -52,7 +56,7 @@ export class PrinterManager {
 		if (device.meta.deviceType !== 'printer') {
 			const updatedConfig = updateDeviceConfig(device.vid, device.pid, {
 				deviceType: 'printer',
-				baudrate: 'not-supported'
+				baudrate: 'not-supported',
 			});
 
 			if (!updatedConfig) {
@@ -62,21 +66,27 @@ export class PrinterManager {
 					baudrate: 'not-supported',
 					setToDefault: false,
 					brand: '',
-					model: ''
+					model: '',
 				});
 			}
 
 			// Update device metadata
-			device.meta = { ...device.meta, deviceType: 'printer', baudrate: 'not-supported' };
+			device.meta = {
+				...device.meta,
+				deviceType: 'printer',
+				baudrate: 'not-supported',
+			};
 			device.capabilities = ['write'];
 		}
 
 		try {
 			const adapter = new ThermalPrinterAdapter(device);
-			
+
 			adapter.onError((error) => {
 				console.error(`Printer adapter error for ${device.id}:`, error);
-				this.deviceManager.getEventEmitter().emitDeviceError(device.id, new Error(String(error)));
+				this.deviceManager
+					.getEventEmitter()
+					.emitDeviceError(device.id, new Error(String(error)));
 				this.closePrinterAdapter(device.id);
 			});
 
@@ -84,7 +94,10 @@ export class PrinterManager {
 			this.printerAdapters.set(device.id, adapter);
 			console.log(`Printer adapter created for ${device.id}`);
 		} catch (error) {
-			console.error(`Failed to create printer adapter for ${device.id}:`, error);
+			console.error(
+				`Failed to create printer adapter for ${device.id}:`,
+				error,
+			);
 			throw error;
 		}
 	}
@@ -123,7 +136,10 @@ export class PrinterManager {
 				try {
 					await this.ensurePrinterAdapter(device);
 				} catch (error) {
-					console.error(`Failed to auto-create printer adapter for ${device.id}:`, error);
+					console.error(
+						`Failed to auto-create printer adapter for ${device.id}:`,
+						error,
+					);
 				}
 			}
 		});

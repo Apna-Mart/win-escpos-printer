@@ -1,21 +1,29 @@
 import * as storage from 'node-global-storage';
-import { type DeviceConfig } from './types';
+import type { DeviceConfig } from './types';
 
 const createDeviceKey = (vid: string, pid: string): string => {
 	return `device_${vid}_${pid}`;
 };
 
 const isValidBaudRate = (value: unknown): boolean => {
-	return value === 'not-supported' || 
-		   (typeof value === 'number' && 
-		    [110, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200, 128000, 256000].includes(value));
+	return (
+		value === 'not-supported' ||
+		(typeof value === 'number' &&
+			[
+				110, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600,
+				115200, 128000, 256000,
+			].includes(value))
+	);
 };
 
 const validateConfig = (config: Partial<DeviceConfig>): boolean => {
 	for (const [field, value] of Object.entries(config)) {
 		switch (field) {
 			case 'deviceType':
-				if (typeof value !== 'string' || !['printer', 'scanner', 'scale', 'unassigned'].includes(value)) {
+				if (
+					typeof value !== 'string' ||
+					!['printer', 'scanner', 'scale', 'unassigned'].includes(value)
+				) {
 					return false;
 				}
 				break;
@@ -42,7 +50,9 @@ const validateConfig = (config: Partial<DeviceConfig>): boolean => {
 	return true;
 };
 
-const filterDeviceKeys = (allValues: Record<string, unknown>): Record<string, DeviceConfig> => {
+const filterDeviceKeys = (
+	allValues: Record<string, unknown>,
+): Record<string, DeviceConfig> => {
 	const deviceConfigs: Record<string, DeviceConfig> = {};
 	for (const key in allValues) {
 		if (key.startsWith('device_')) {
@@ -53,21 +63,32 @@ const filterDeviceKeys = (allValues: Record<string, unknown>): Record<string, De
 };
 
 // Main functions
-export const saveDeviceConfig = (vid: string, pid: string, config: DeviceConfig): void => {
+export const saveDeviceConfig = (
+	vid: string,
+	pid: string,
+	config: DeviceConfig,
+): void => {
 	const key = createDeviceKey(vid, pid);
 	storage.setValue<DeviceConfig>(key, config);
 };
 
-export const getDeviceConfig = (vid: string, pid: string): DeviceConfig | null => {
+export const getDeviceConfig = (
+	vid: string,
+	pid: string,
+): DeviceConfig | null => {
 	const key = createDeviceKey(vid, pid);
 	return storage.getValue<DeviceConfig>(key) || null;
 };
 
-export const updateDeviceConfig = (vid: string, pid: string, config: Partial<DeviceConfig>): DeviceConfig | null => {
+export const updateDeviceConfig = (
+	vid: string,
+	pid: string,
+	config: Partial<DeviceConfig>,
+): DeviceConfig | null => {
 	if (!vid || !pid || !config || Object.keys(config).length === 0) {
 		return null;
 	}
-	
+
 	if (!validateConfig(config)) {
 		return null;
 	}
@@ -92,7 +113,7 @@ export const deleteDeviceConfig = (vid: string, pid: string): boolean => {
 	if (!storage.getValue<DeviceConfig>(key)) {
 		return false;
 	}
-	
+
 	storage.unsetValue(key);
 	return true;
 };
@@ -122,5 +143,6 @@ export const hasDeviceConfig = (vid: string, pid: string): boolean => {
 
 export const getDeviceCount = (): number => {
 	const allValues = storage.getAllValues();
-	return Object.keys(allValues).filter(key => key.startsWith('device_')).length;
+	return Object.keys(allValues).filter((key) => key.startsWith('device_'))
+		.length;
 };

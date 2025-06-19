@@ -1,7 +1,14 @@
 import { usb } from 'usb';
-import type { TerminalDevice, DeviceType, DeviceConfig } from '../core/types';
-import { getConnectedDevices, devicesWithSavedConfig } from '../core/deviceDetector';
-import { DeviceEventEmitter, type DeviceConnectCallback, type DeviceDisconnectCallback } from '../core/deviceEvents';
+import {
+	devicesWithSavedConfig,
+	getConnectedDevices,
+} from '../core/deviceDetector';
+import {
+	type DeviceConnectCallback,
+	type DeviceDisconnectCallback,
+	DeviceEventEmitter,
+} from '../core/deviceEvents';
+import type { DeviceConfig, DeviceType, TerminalDevice } from '../core/types';
 import { DeviceConfigService } from '../services/deviceConfigService';
 
 export class DeviceManager {
@@ -28,13 +35,13 @@ export class DeviceManager {
 
 		// Initial device scan
 		await this.refreshDevices();
-		
+
 		// Setup USB monitoring (only once)
 		if (!this.usbListenersSetup) {
 			this.setupUSBListeners();
 			this.usbListenersSetup = true;
 		}
-		
+
 		this.isRunning = true;
 	}
 
@@ -50,7 +57,7 @@ export class DeviceManager {
 
 		// Clear events
 		this.events.clear();
-		
+
 		// Clear device cache
 		this.devices.clear();
 
@@ -75,7 +82,8 @@ export class DeviceManager {
 
 	getDefaultDevice(deviceType: DeviceType): TerminalDevice | undefined {
 		return Array.from(this.devices.values()).find(
-			device => device.meta.deviceType === deviceType && device.meta.setToDefault
+			(device) =>
+				device.meta.deviceType === deviceType && device.meta.setToDefault,
 		);
 	}
 
@@ -86,7 +94,7 @@ export class DeviceManager {
 
 	getDevicesByType(deviceType: DeviceType): TerminalDevice[] {
 		return Array.from(this.devices.values()).filter(
-			device => device.meta.deviceType === deviceType
+			(device) => device.meta.deviceType === deviceType,
 		);
 	}
 
@@ -100,7 +108,7 @@ export class DeviceManager {
 			this.pendingRefresh = true;
 			// Wait for current refresh to complete instead of immediately returning
 			while (this.refreshInProgress) {
-				await new Promise(resolve => setTimeout(resolve, 50));
+				await new Promise((resolve) => setTimeout(resolve, 50));
 			}
 			return;
 		}
@@ -120,7 +128,7 @@ export class DeviceManager {
 				} else {
 					// Update existing device metadata
 					const existingDevice = this.devices.get(device.id)!;
-					const hasChanges = 
+					const hasChanges =
 						existingDevice.meta.deviceType !== device.meta.deviceType ||
 						existingDevice.meta.setToDefault !== device.meta.setToDefault ||
 						existingDevice.meta.baudrate !== device.meta.baudrate;
@@ -134,7 +142,7 @@ export class DeviceManager {
 			}
 
 			// Check for disconnected devices
-			const currentDeviceIds = new Set(devicesWithConfig.map(d => d.id));
+			const currentDeviceIds = new Set(devicesWithConfig.map((d) => d.id));
 			const deviceEntries = Array.from(this.devices.entries());
 			for (const [deviceId] of deviceEntries) {
 				if (!currentDeviceIds.has(deviceId)) {
@@ -161,21 +169,21 @@ export class DeviceManager {
 		if (this.refreshInProgress) {
 			// Wait for current refresh to complete
 			while (this.refreshInProgress) {
-				await new Promise(resolve => setTimeout(resolve, 50));
+				await new Promise((resolve) => setTimeout(resolve, 50));
 			}
 		}
 
 		try {
 			const detectedDevices = await getConnectedDevices();
 			const devicesWithConfig = devicesWithSavedConfig(detectedDevices);
-			
+
 			// Convert numbers to hex strings for comparison
 			const targetVid = `0x${vid.toString(16).toLowerCase()}`;
 			const targetPid = `0x${pid.toString(16).toLowerCase()}`;
 
 			// Filter to only devices matching the target VID/PID
-			const targetDevices = devicesWithConfig.filter(d => 
-				d.vid === targetVid && d.pid === targetPid
+			const targetDevices = devicesWithConfig.filter(
+				(d) => d.vid === targetVid && d.pid === targetPid,
 			);
 
 			// Add/update only the target devices
@@ -187,7 +195,7 @@ export class DeviceManager {
 				} else {
 					// Update existing device metadata
 					const existingDevice = this.devices.get(device.id)!;
-					const hasChanges = 
+					const hasChanges =
 						existingDevice.meta.deviceType !== device.meta.deviceType ||
 						existingDevice.meta.setToDefault !== device.meta.setToDefault ||
 						existingDevice.meta.baudrate !== device.meta.baudrate;
@@ -211,15 +219,15 @@ export class DeviceManager {
 		if (this.refreshInProgress) {
 			// Wait for current refresh to complete
 			while (this.refreshInProgress) {
-				await new Promise(resolve => setTimeout(resolve, 50));
+				await new Promise((resolve) => setTimeout(resolve, 50));
 			}
 		}
 
 		try {
 			const detectedDevices = await getConnectedDevices();
 			const devicesWithConfig = devicesWithSavedConfig(detectedDevices);
-			const currentDeviceIds = new Set(devicesWithConfig.map(d => d.id));
-			
+			const currentDeviceIds = new Set(devicesWithConfig.map((d) => d.id));
+
 			// Find devices that are in our manager but no longer detected
 			const deviceEntries = Array.from(this.devices.entries());
 			for (const [deviceId] of deviceEntries) {
@@ -241,24 +249,24 @@ export class DeviceManager {
 		if (this.refreshInProgress) {
 			// Wait for current refresh to complete
 			while (this.refreshInProgress) {
-				await new Promise(resolve => setTimeout(resolve, 50));
+				await new Promise((resolve) => setTimeout(resolve, 50));
 			}
 		}
 
 		try {
 			const detectedDevices = await getConnectedDevices();
 			const devicesWithConfig = devicesWithSavedConfig(detectedDevices);
-			
+
 			// Filter to only devices matching the target VID/PID
-			const targetDevices = devicesWithConfig.filter(d => 
-				d.vid === vid && d.pid === pid
+			const targetDevices = devicesWithConfig.filter(
+				(d) => d.vid === vid && d.pid === pid,
 			);
 
 			// Update only the target devices
 			for (const device of targetDevices) {
 				if (this.devices.has(device.id)) {
 					const existingDevice = this.devices.get(device.id)!;
-					const hasChanges = 
+					const hasChanges =
 						existingDevice.meta.deviceType !== device.meta.deviceType ||
 						existingDevice.meta.setToDefault !== device.meta.setToDefault ||
 						existingDevice.meta.baudrate !== device.meta.baudrate;
@@ -274,7 +282,6 @@ export class DeviceManager {
 			console.error(`Error refreshing config for ${vid}:${pid}:`, error);
 		}
 	}
-
 
 	private setupUSBListeners(): void {
 		usb.on('attach', (device) => {
@@ -295,8 +302,12 @@ export class DeviceManager {
 	}
 
 	// Device Configuration Methods (delegate to config service + trigger refresh)
-	
-	async setDeviceConfig(vid: string, pid: string, config: DeviceConfig): Promise<boolean> {
+
+	async setDeviceConfig(
+		vid: string,
+		pid: string,
+		config: DeviceConfig,
+	): Promise<boolean> {
 		const result = await this.configService.setDeviceConfig(vid, pid, config);
 		if (result) {
 			await this.refreshDeviceConfig(vid, pid);
@@ -304,8 +315,16 @@ export class DeviceManager {
 		return result;
 	}
 
-	async updateDeviceConfig(vid: string, pid: string, config: Partial<DeviceConfig>): Promise<DeviceConfig | null> {
-		const result = await this.configService.updateDeviceConfig(vid, pid, config);
+	async updateDeviceConfig(
+		vid: string,
+		pid: string,
+		config: Partial<DeviceConfig>,
+	): Promise<DeviceConfig | null> {
+		const result = await this.configService.updateDeviceConfig(
+			vid,
+			pid,
+			config,
+		);
 		if (result) {
 			await this.refreshDeviceConfig(vid, pid);
 		}
@@ -340,7 +359,11 @@ export class DeviceManager {
 			return false;
 		}
 
-		const result = await this.configService.setDeviceAsDefault(device.vid, device.pid, device.meta.deviceType);
+		const result = await this.configService.setDeviceAsDefault(
+			device.vid,
+			device.pid,
+			device.meta.deviceType,
+		);
 		if (result) {
 			await this.refreshDevices(); // Full refresh to update all default states
 		}
@@ -354,7 +377,10 @@ export class DeviceManager {
 			return false;
 		}
 
-		const result = await this.configService.unsetDeviceAsDefault(device.vid, device.pid);
+		const result = await this.configService.unsetDeviceAsDefault(
+			device.vid,
+			device.pid,
+		);
 		if (result) {
 			await this.refreshDeviceConfig(device.vid, device.pid);
 		}

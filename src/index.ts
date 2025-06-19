@@ -1,8 +1,7 @@
-import { DeviceManager } from "./managers/deviceManager";
-import { PrinterManager } from "./managers/printerManager";
-import { ScannerManager } from "./managers/scannerManager";
-import { ScaleManager } from "./managers/scaleManager";
-
+import { DeviceManager } from './managers/deviceManager';
+import { PrinterManager } from './managers/printerManager';
+import { ScaleManager } from './managers/scaleManager';
+import { ScannerManager } from './managers/scannerManager';
 
 async function demonstratePersistentCallbacks() {
 	console.log('🚀 Demonstrating Persistent Callbacks and Auto-Reconnection\n');
@@ -15,7 +14,9 @@ async function demonstratePersistentCallbacks() {
 
 	// Set up device connection/disconnection events
 	deviceManager.onDeviceConnect((device) => {
-		console.log(`✅ Device Connected: ${device.id} (${device.meta.deviceType})`);
+		console.log(
+			`✅ Device Connected: ${device.id} (${device.meta.deviceType})`,
+		);
 	});
 
 	deviceManager.onDeviceDisconnect((deviceId) => {
@@ -28,19 +29,25 @@ async function demonstratePersistentCallbacks() {
 
 	// 🔥 DEMO 1: Setting up callbacks BEFORE devices connect
 	console.log('🔥 DEMO 1: Setting up callbacks BEFORE devices are connected');
-	console.log('This will queue callbacks and start scanning/reading when devices connect\n');
+	console.log(
+		'This will queue callbacks and start scanning/reading when devices connect\n',
+	);
 
 	// Set up scanner callback before device connects
 	await scannerManager.scanFromDefault((data) => {
 		console.log(`📄 [QUEUED CALLBACK] Scanned: ${data}`);
 	});
-	console.log('✅ Scanner callback queued for default scanner (even if not connected yet)');
+	console.log(
+		'✅ Scanner callback queued for default scanner (even if not connected yet)',
+	);
 
 	// Set up scale callback before device connects
 	await scaleManager.readFromDefault((weight) => {
 		console.log(`⚖️  [QUEUED CALLBACK] Weight: ${weight}`);
 	});
-	console.log('✅ Scale callback queued for default scale (even if not connected yet)');
+	console.log(
+		'✅ Scale callback queued for default scale (even if not connected yet)',
+	);
 
 	// 🔥 DEMO 2: Multiple listeners on same device
 	console.log('\n🔥 DEMO 2: Multiple listeners on same device');
@@ -61,7 +68,9 @@ async function demonstratePersistentCallbacks() {
 		console.log(`⚖️  [LISTENER B] Weight: ${weight}`);
 	});
 
-	console.log('✅ Multiple callbacks set up - each scan/weight reading will trigger all callbacks');
+	console.log(
+		'✅ Multiple callbacks set up - each scan/weight reading will trigger all callbacks',
+	);
 
 	// 🔥 DEMO 3: Global callbacks that work with any device
 	console.log('\n🔥 DEMO 3: Global callbacks for any scanner/scale');
@@ -74,7 +83,9 @@ async function demonstratePersistentCallbacks() {
 		console.log(`⚖️  [GLOBAL] Any scale data: ${weight}`);
 	});
 
-	console.log('✅ Global callbacks set up - will receive data from ANY scanner/scale');
+	console.log(
+		'✅ Global callbacks set up - will receive data from ANY scanner/scale',
+	);
 
 	// 🔥 DEMO 4: One-time weight reading
 	console.log('\n🔥 DEMO 4: One-time weight reading with timeout');
@@ -93,30 +104,43 @@ async function demonstratePersistentCallbacks() {
 	setTimeout(() => {
 		const devices = deviceManager.getDevices();
 		console.log(`\n📋 Currently connected devices: ${devices.length}`);
-		devices.forEach(device => {
-			console.log(`   ${device.id}: ${device.meta.deviceType} (default: ${device.meta.setToDefault})`);
+		devices.forEach((device) => {
+			console.log(
+				`   ${device.id}: ${device.meta.deviceType} (default: ${device.meta.setToDefault})`,
+			);
 		});
 
 		const activeScanners = scannerManager.getActiveScanners();
 		const activeScales = scaleManager.getActiveScales();
-		console.log(`📊 Active scanners: ${activeScanners.length} - ${activeScanners.join(', ')}`);
-		console.log(`📊 Active scales: ${activeScales.length} - ${activeScales.join(', ')}`);
+		console.log(
+			`📊 Active scanners: ${activeScanners.length} - ${activeScanners.join(', ')}`,
+		);
+		console.log(
+			`📊 Active scales: ${activeScales.length} - ${activeScales.join(', ')}`,
+		);
 	}, 3000);
 
 	// Instructions for user
 	console.log('\n📋 INSTRUCTIONS:');
 	console.log('1. Connect/disconnect your scanner and scale devices');
 	console.log('2. Notice that callbacks are preserved across disconnections');
-	console.log('3. When devices reconnect, scanning/reading automatically resumes');
-	console.log('4. Scan barcodes or place items on scale to see multiple callbacks trigger');
-	console.log('5. Try setting device as default in your config to see auto-start behavior');
+	console.log(
+		'3. When devices reconnect, scanning/reading automatically resumes',
+	);
+	console.log(
+		'4. Scan barcodes or place items on scale to see multiple callbacks trigger',
+	);
+	console.log(
+		'5. Try setting device as default in your config to see auto-start behavior',
+	);
 
 	// Demonstration of callback management
 	setTimeout(() => {
 		console.log('\n🔧 DEMO: Callback Management');
 
 		// Show how to remove specific callbacks
-		const testCallback = (data: string) => console.log(`Test callback: ${data}`);
+		const testCallback = (data: string) =>
+			console.log(`Test callback: ${data}`);
 
 		scannerManager.scanFromDefault(testCallback);
 		console.log('✅ Added test callback');
@@ -125,7 +149,6 @@ async function demonstratePersistentCallbacks() {
 			scannerManager.removeDefaultCallback(testCallback);
 			console.log('✅ Removed test callback');
 		}, 2000);
-
 	}, 10000);
 
 	// Clean shutdown after 60 seconds

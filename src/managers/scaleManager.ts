@@ -1,8 +1,8 @@
-import { WeightScaleAdapter } from '../adaptor/weightScaleAdaptor';
 import type { ReadableDevice } from '../adaptor/deviceAdaptor';
-import type { DeviceManager } from './deviceManager';
-import type { TerminalDevice, BaudRate } from '../core/types';
+import { WeightScaleAdapter } from '../adaptor/weightScaleAdaptor';
 import { updateDeviceConfig } from '../core/deviceConfig';
+import type { BaudRate, TerminalDevice } from '../core/types';
+import type { DeviceManager } from './deviceManager';
 
 export type WeightDataCallback = (data: string) => void;
 
@@ -19,16 +19,21 @@ export class ScaleManager {
 		this.setupEventListeners();
 	}
 
-	async readFromDevice(deviceId: string, callback: WeightDataCallback): Promise<void> {
+	async readFromDevice(
+		deviceId: string,
+		callback: WeightDataCallback,
+	): Promise<void> {
 		// Add callback to persistent storage
 		if (!this.persistentCallbacks.has(deviceId)) {
 			this.persistentCallbacks.set(deviceId, []);
 		}
-		this.persistentCallbacks.get(deviceId)!.push(callback);
+		this.persistentCallbacks.get(deviceId)?.push(callback);
 
 		const device = this.deviceManager.getDevice(deviceId);
 		if (!device) {
-			console.log(`Device ${deviceId} not found, callback queued for when device connects`);
+			console.log(
+				`Device ${deviceId} not found, callback queued for when device connects`,
+			);
 			return; // Don't throw error, just queue the callback
 		}
 
@@ -42,7 +47,9 @@ export class ScaleManager {
 	async readFromDefault(callback: WeightDataCallback): Promise<void> {
 		const defaultScaleId = this.deviceManager.getDefaultDeviceId('scale');
 		if (!defaultScaleId) {
-			console.log('No default scale found, callback queued for when default scale connects');
+			console.log(
+				'No default scale found, callback queued for when default scale connects',
+			);
 			// Store callback with a special key for "default scale when it becomes available"
 			this.storeCallbackForWhenDefaultConnects('scale', callback);
 			return;
@@ -51,7 +58,10 @@ export class ScaleManager {
 		await this.readFromDevice(defaultScaleId, callback);
 	}
 
-	private storeCallbackForWhenDefaultConnects(deviceType: 'scale', callback: WeightDataCallback): void {
+	private storeCallbackForWhenDefaultConnects(
+		deviceType: 'scale',
+		callback: WeightDataCallback,
+	): void {
 		this.pendingDefaultCallbacks.push(callback);
 	}
 
@@ -107,12 +117,14 @@ export class ScaleManager {
 	private async startReadingDevice(device: TerminalDevice): Promise<void> {
 		try {
 			await this.ensureScaleAdapter(device);
-			
+
 			if (!this.activeScales.has(device.id)) {
 				// Set up data callback that routes to all persistent callbacks
-				this.deviceManager.getEventEmitter().onDeviceData(device.id, (_, data) => {
-					this.handleWeightData(device.id, data);
-				});
+				this.deviceManager
+					.getEventEmitter()
+					.onDeviceData(device.id, (_, data) => {
+						this.handleWeightData(device.id, data);
+					});
 
 				this.activeScales.add(device.id);
 				console.log(`Started reading from scale: ${device.id}`);
@@ -126,7 +138,7 @@ export class ScaleManager {
 	private handleWeightData(deviceId: string, data: string): void {
 		// Send to device-specific callbacks (includes default scale callbacks since they're stored by device ID)
 		const deviceCallbacks = this.persistentCallbacks.get(deviceId) || [];
-		deviceCallbacks.forEach(callback => {
+		deviceCallbacks.forEach((callback) => {
 			try {
 				callback(data);
 			} catch (error) {
@@ -135,7 +147,7 @@ export class ScaleManager {
 		});
 
 		// Send to global weight callbacks
-		this.globalWeightCallbacks.forEach(callback => {
+		this.globalWeightCallbacks.forEach((callback) => {
 			try {
 				callback(data);
 			} catch (error) {
@@ -144,7 +156,10 @@ export class ScaleManager {
 		});
 	}
 
-	async ensureScaleAdapter(device: TerminalDevice, baudRate?: BaudRate): Promise<void> {
+	async ensureScaleAdapter(
+		device: TerminalDevice,
+		baudRate?: BaudRate,
+	): Promise<void> {
 		if (this.scaleAdapters.has(device.id)) {
 			return; // Adapter already exists
 		}
@@ -165,7 +180,9 @@ export class ScaleManager {
 
 			adapter.onError((error) => {
 				console.error(`Scale adapter error for ${device.id}:`, error);
-				this.deviceManager.getEventEmitter().emitDeviceError(device.id, new Error(String(error)));
+				this.deviceManager
+					.getEventEmitter()
+					.emitDeviceError(device.id, new Error(String(error)));
 				this.closeScaleAdapter(device.id);
 			});
 
@@ -231,7 +248,10 @@ export class ScaleManager {
 	}
 
 	// Get current weight from specific scale (one-time read with timeout)
-	async getCurrentWeightFromDevice(deviceId: string, timeoutMs = 5000): Promise<string> {
+	async getCurrentWeightFromDevice(
+		deviceId: string,
+		timeoutMs = 5000,
+	): Promise<string> {
 		const device = this.deviceManager.getDevice(deviceId);
 		if (!device) {
 			throw new Error(`Device ${deviceId} not found`);
@@ -265,14 +285,17 @@ export class ScaleManager {
 	// Setup a global weight data callback (for any scale)
 	onWeightData(callback: WeightDataCallback): void {
 		this.globalWeightCallbacks.push(callback);
-		
+
 		// Start reading from any existing scales
 		const scales = this.deviceManager.getDevicesByType('scale');
 		scales.forEach(async (scale) => {
 			try {
 				await this.startReadingDevice(scale);
 			} catch (error) {
-				console.error(`Failed to start reading from existing scale ${scale.id}:`, error);
+				console.error(
+					`Failed to start reading from existing scale ${scale.id}:`,
+					error,
+				);
 			}
 		});
 	}
@@ -283,40 +306,62 @@ export class ScaleManager {
 			if (device.meta.deviceType === 'scale') {
 				try {
 					// Check if this device has persistent callbacks waiting
-					const hasCallbacks = this.persistentCallbacks.has(device.id) && 
+					const hasCallbacks =
+						this.persistentCallbacks.has(device.id) &&
 						this.persistentCallbacks.get(device.id)!.length > 0;
-					
+
 					// Check if this is the default scale and has pending default callbacks
-					const isDefaultWithPendingCallbacks = device.meta.setToDefault && 
-						this.pendingDefaultCallbacks.length > 0;
-					
+					const isDefaultWithPendingCallbacks =
+						device.meta.setToDefault && this.pendingDefaultCallbacks.length > 0;
+
 					// Check if there are global callbacks waiting
 					const hasGlobalCallbacks = this.globalWeightCallbacks.length > 0;
 
 					// If this device becomes the default scale, move pending callbacks to device-specific storage
-					if (device.meta.setToDefault && this.pendingDefaultCallbacks.length > 0) {
+					if (
+						device.meta.setToDefault &&
+						this.pendingDefaultCallbacks.length > 0
+					) {
 						if (!this.persistentCallbacks.has(device.id)) {
 							this.persistentCallbacks.set(device.id, []);
 						}
-						this.persistentCallbacks.get(device.id)!.push(...this.pendingDefaultCallbacks);
+						this.persistentCallbacks
+							.get(device.id)!
+							.push(...this.pendingDefaultCallbacks);
 						this.pendingDefaultCallbacks = []; // Clear pending callbacks
-						console.log(`Moved ${this.persistentCallbacks.get(device.id)!.length} pending callbacks to default scale: ${device.id}`);
+						console.log(
+							`Moved ${this.persistentCallbacks.get(device.id)!.length} pending callbacks to default scale: ${device.id}`,
+						);
 					}
 
 					// Start reading if device has callbacks waiting or is default with setToDefault=true
-					if (hasCallbacks || isDefaultWithPendingCallbacks || hasGlobalCallbacks || device.meta.setToDefault) {
+					if (
+						hasCallbacks ||
+						isDefaultWithPendingCallbacks ||
+						hasGlobalCallbacks ||
+						device.meta.setToDefault
+					) {
 						await this.startReadingDevice(device);
-						
+
 						if (isDefaultWithPendingCallbacks) {
-							console.log(`Auto-started reading from new default scale: ${device.id}`);
+							console.log(
+								`Auto-started reading from new default scale: ${device.id}`,
+							);
 						} else if (hasCallbacks) {
-							console.log(`Auto-resumed reading from reconnected scale: ${device.id}`);
+							console.log(
+								`Auto-resumed reading from reconnected scale: ${device.id}`,
+							);
 						} else if (device.meta.setToDefault) {
-							console.log(`Auto-started reading from default scale: ${device.id}`);
+							console.log(
+								`Auto-started reading from default scale: ${device.id}`,
+							);
 						}
 					}
 				} catch (error) {
-					console.error(`Failed to auto-start reading from ${device.id}:`, error);
+					console.error(
+						`Failed to auto-start reading from ${device.id}:`,
+						error,
+					);
 				}
 			}
 		});
@@ -325,7 +370,9 @@ export class ScaleManager {
 		this.deviceManager.onDeviceDisconnect(async (deviceId) => {
 			this.activeScales.delete(deviceId);
 			await this.closeScaleAdapter(deviceId);
-			console.log(`Scale ${deviceId} disconnected, callbacks preserved for reconnection`);
+			console.log(
+				`Scale ${deviceId} disconnected, callbacks preserved for reconnection`,
+			);
 		});
 	}
 }

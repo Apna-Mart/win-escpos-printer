@@ -1,29 +1,32 @@
-import type { DeviceConfig } from '../core/types';
-import { 
-	saveDeviceConfig, 
-	getDeviceConfig, 
-	updateDeviceConfig as updateConfig, 
-	deleteDeviceConfig as deleteConfig,
+import {
 	clearAllDevices,
+	deleteDeviceConfig as deleteConfig,
 	getAllDeviceConfig,
+	getDeviceConfig,
+	getDeviceCount,
 	hasDeviceConfig,
-	getDeviceCount
+	saveDeviceConfig,
+	updateDeviceConfig as updateConfig,
 } from '../core/deviceConfig';
+import type { DeviceConfig } from '../core/types';
 
 /**
  * Service for managing device configurations
  * Handles CRUD operations for device settings
  */
 export class DeviceConfigService {
-	
 	/**
 	 * Set/create device configuration
 	 * @param vid - Vendor ID
-	 * @param pid - Product ID  
+	 * @param pid - Product ID
 	 * @param config - Device configuration
 	 * @returns true if successful, false otherwise
 	 */
-	async setDeviceConfig(vid: string, pid: string, config: DeviceConfig): Promise<boolean> {
+	async setDeviceConfig(
+		vid: string,
+		pid: string,
+		config: DeviceConfig,
+	): Promise<boolean> {
 		try {
 			saveDeviceConfig(vid, pid, config);
 			return true;
@@ -40,7 +43,11 @@ export class DeviceConfigService {
 	 * @param config - Partial device configuration to update
 	 * @returns Updated configuration if successful, null otherwise
 	 */
-	async updateDeviceConfig(vid: string, pid: string, config: Partial<DeviceConfig>): Promise<DeviceConfig | null> {
+	async updateDeviceConfig(
+		vid: string,
+		pid: string,
+		config: Partial<DeviceConfig>,
+	): Promise<DeviceConfig | null> {
 		try {
 			const updatedConfig = updateConfig(vid, pid, config);
 			return updatedConfig;
@@ -143,7 +150,11 @@ export class DeviceConfigService {
 	 * @param deviceType - Device type
 	 * @returns true if successful, false otherwise
 	 */
-	async setDeviceAsDefault(vid: string, pid: string, deviceType: string): Promise<boolean> {
+	async setDeviceAsDefault(
+		vid: string,
+		pid: string,
+		deviceType: string,
+	): Promise<boolean> {
 		try {
 			// First, unset any existing default for this device type
 			const allConfigs = this.getAllDeviceConfigs();
@@ -151,13 +162,17 @@ export class DeviceConfigService {
 				if (config.deviceType === deviceType && config.setToDefault) {
 					const [existingVid, existingPid] = key.split(':');
 					if (existingVid !== vid || existingPid !== pid) {
-						await this.updateDeviceConfig(existingVid, existingPid, { setToDefault: false });
+						await this.updateDeviceConfig(existingVid, existingPid, {
+							setToDefault: false,
+						});
 					}
 				}
 			}
 
 			// Set this device as default
-			const result = await this.updateDeviceConfig(vid, pid, { setToDefault: true });
+			const result = await this.updateDeviceConfig(vid, pid, {
+				setToDefault: true,
+			});
 			return result !== null;
 		} catch (error) {
 			console.error(`Failed to set device ${vid}:${pid} as default:`, error);
@@ -173,7 +188,9 @@ export class DeviceConfigService {
 	 */
 	async unsetDeviceAsDefault(vid: string, pid: string): Promise<boolean> {
 		try {
-			const result = await this.updateDeviceConfig(vid, pid, { setToDefault: false });
+			const result = await this.updateDeviceConfig(vid, pid, {
+				setToDefault: false,
+			});
 			return result !== null;
 		} catch (error) {
 			console.error(`Failed to unset device ${vid}:${pid} as default:`, error);
