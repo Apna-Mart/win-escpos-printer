@@ -3,6 +3,7 @@ import Serial from '@node-escpos/serialport-adapter';
 import USB from '@node-escpos/usb-adapter';
 import { ThermalWindowPrinter } from "./windows_printer";
 import { TerminalDevice } from "./types";
+import { getDeviceConfig, saveDeviceConfig } from "./deviceConfig";
 
 
 // Helper function to format ID as hexadecimal string
@@ -128,6 +129,18 @@ export async function getConnectedDevices(): Promise<TerminalDevice[]> {
 	// Serial port detection
 	const serialDevices = await getSerialDevices(connectedDevices);
 	devices.push(...serialDevices);
+
+	devices.forEach(device => {
+		saveDeviceConfig(device.vid, device.pid, {deviceType: 'unassigned', baudrate: 9600, setToDefault: false, brand: '', model: ''})
+	})
+
+	devices.map(device => {
+		const saved = getDeviceConfig(device.vid, device.pid)
+		if (saved) {
+			device.meta = saved;
+		}
+		return device;
+	})
 
 	return devices;
 }
