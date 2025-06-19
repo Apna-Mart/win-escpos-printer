@@ -1,8 +1,8 @@
-import { BarcodeScannerAdapter } from './adaptor/barcodeScannerAdaptor';
-import type { ReadableDevice } from './adaptor/deviceAdaptor';
+import { BarcodeScannerAdapter } from '../adaptor/barcodeScannerAdaptor';
+import type { ReadableDevice } from '../adaptor/deviceAdaptor';
 import type { DeviceManager } from './deviceManager';
-import type { TerminalDevice, BaudRate } from './types';
-import { updateDeviceConfig } from './deviceConfig';
+import type { TerminalDevice, BaudRate } from '../core/types';
+import { updateDeviceConfig } from '../core/deviceConfig';
 
 export type ScanDataCallback = (data: string) => void;
 

@@ -2,8 +2,8 @@ import { Image, Printer } from '@node-escpos/core';
 import USB from '@node-escpos/usb-adapter';
 import type USBAdapter from '@node-escpos/usb-adapter';
 import type { WritableDevice } from './deviceAdaptor';
-import { EscPosCommands, ThermalWindowPrinter } from "../windows_printer";
-import { TerminalDevice } from "../types";
+import { EscPosCommands, ThermalWindowPrinter } from "../core/windows_printer";
+import { TerminalDevice } from "../core/types";
 import assert from "node:assert";
 
 export class ThermalPrinterAdapter implements WritableDevice {

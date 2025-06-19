@@ -16,8 +16,6 @@ export type BaudRate =
 
 export type DeviceType = 'printer' | 'scanner' | 'scale' | 'unassigned';
 
-export type DeviceStatus = 'attached' | 'detached' | 'processing' | 'error';
-
 export interface DeviceConfig {
 	deviceType: DeviceType;
 	brand: string;

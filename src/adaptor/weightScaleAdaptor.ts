@@ -1,6 +1,6 @@
 import { ReadlineParser, SerialPort } from 'serialport';
 import type { ReadableDevice } from './deviceAdaptor';
-import { TerminalDevice } from "../types";
+import { TerminalDevice } from "../core/types";
 import assert from "node:assert";
 
 export class WeightScaleAdapter implements ReadableDevice {

@@ -1,8 +1,8 @@
-import { WeightScaleAdapter } from './adaptor/weightScaleAdaptor';
-import type { ReadableDevice } from './adaptor/deviceAdaptor';
+import { WeightScaleAdapter } from '../adaptor/weightScaleAdaptor';
+import type { ReadableDevice } from '../adaptor/deviceAdaptor';
 import type { DeviceManager } from './deviceManager';
-import type { TerminalDevice, BaudRate } from './types';
-import { updateDeviceConfig } from './deviceConfig';
+import type { TerminalDevice, BaudRate } from '../core/types';
+import { updateDeviceConfig } from '../core/deviceConfig';
 
 export type WeightDataCallback = (data: string) => void;
 

@@ -1,8 +1,8 @@
-import { ThermalPrinterAdapter } from './adaptor/thermalPrinterAdaptor';
-import type { WritableDevice } from './adaptor/deviceAdaptor';
+import { ThermalPrinterAdapter } from '../adaptor/thermalPrinterAdaptor';
+import type { WritableDevice } from '../adaptor/deviceAdaptor';
 import type { DeviceManager } from './deviceManager';
-import type { TerminalDevice } from './types';
-import { saveDeviceConfig, updateDeviceConfig } from './deviceConfig';
+import type { TerminalDevice } from '../core/types';
+import { saveDeviceConfig, updateDeviceConfig } from '../core/deviceConfig';
 
 export class PrinterManager {
 	private deviceManager: DeviceManager;

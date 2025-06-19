@@ -1,9 +1,9 @@
 import { type Device, usb } from 'usb';
 import Serial from '@node-escpos/serialport-adapter';
 import USB from '@node-escpos/usb-adapter';
-import { ThermalWindowPrinter } from "./windows_printer";
 import { TerminalDevice } from "./types";
 import { getDeviceConfig, saveDeviceConfig } from "./deviceConfig";
+import { ThermalWindowPrinter } from "./windows_printer";
 
 
 // Helper function to format ID as hexadecimal string
