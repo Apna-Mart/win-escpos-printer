@@ -1,0 +1,129 @@
+import { type Device, usb } from 'usb';
+import Serial from '@node-escpos/serialport-adapter';
+import USB from '@node-escpos/usb-adapter';
+import { ThermalWindowPrinter } from "./windows_printer";
+import { TerminalDevice } from "./types";
+
+
+// Helper function to format ID as hexadecimal string
+const toHexString = (value: number | string): string => {
+	const num = typeof value === 'string' ? Number.parseInt(value, 16) : value;
+	return `0x${num.toString(16).toLowerCase()}`;
+};
+
+// Filter USB devices excluding common system device classes
+function getFilteredUsbDevices(): Device[] {
+	const excludedClasses = new Set([3, 9, 11, 14, 224, 239]);
+	return usb.getDeviceList().filter((device) =>
+		!excludedClasses.has(device.deviceDescriptor.bDeviceClass)
+	);
+}
+
+// Get Windows thermal printers
+function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
+	const devices: TerminalDevice[] = [];
+	const availablePrinters = ThermalWindowPrinter.getAvailablePrinters();
+
+	const connectedPrintersOnWindows = connectedDevices.flatMap(device =>
+		availablePrinters.filter(printer =>
+			printer.isUsb &&
+			Number.parseInt(printer.pid) === device.deviceDescriptor.idProduct &&
+			Number.parseInt(printer.vid) === device.deviceDescriptor.idVendor
+		)
+	);
+
+	for (const printer of connectedPrintersOnWindows) {
+		const terminalDevice: TerminalDevice = {
+			capabilities: ['write'],
+			id: '',
+			meta: {deviceType: 'printer', baudrate: 'not-supported', setToDefault: false, brand: '', model: ''},
+			path: printer.portName,
+			pid: toHexString(printer.pid),
+			vid: toHexString(printer.vid),
+			manufacturer: printer.name,
+			serialNumber: ''
+		};
+		devices.push(terminalDevice);
+	}
+
+	return devices;
+}
+
+// Get macOS thermal printers
+function getMacPrinters(connectedDevices: Device[]): TerminalDevice[] {
+	const devices: TerminalDevice[] = [];
+	const availablePrinters = USB.findPrinter();
+
+	const connectPrintersOnMac = connectedDevices.flatMap(device =>
+		availablePrinters.filter(printer =>
+			printer.deviceDescriptor.idProduct === device.deviceDescriptor.idProduct &&
+			printer.deviceDescriptor.idVendor === device.deviceDescriptor.idVendor
+		)
+	);
+
+	for (const printer of connectPrintersOnMac) {
+		const terminalDevice: TerminalDevice = {
+			capabilities: ['write'],
+			id: '',
+			meta: {deviceType: 'printer', baudrate: 'not-supported', setToDefault: false, brand: '', model: ''},
+			path: printer.deviceAddress.toString(),
+			pid: toHexString(printer.deviceDescriptor.idProduct),
+			vid: toHexString(printer.deviceDescriptor.idVendor),
+			manufacturer: (printer.deviceDescriptor.iManufacturer || '').toString(),
+			serialNumber: (printer.deviceDescriptor.iSerialNumber || '').toString()
+		};
+		devices.push(terminalDevice);
+	}
+
+	return devices;
+}
+
+// Get serial port devices
+async function getSerialDevices(connectedDevices: Device[]): Promise<TerminalDevice[]> {
+	const devices: TerminalDevice[] = [];
+	const portInfos = await Serial.list();
+
+	const serialPorts = connectedDevices.flatMap(device =>
+		portInfos.filter(port =>
+			Number.parseInt(port.productId || '0', 16) === device.deviceDescriptor.idProduct &&
+			Number.parseInt(port.vendorId || '0', 16) === device.deviceDescriptor.idVendor
+		)
+	);
+
+	for (const port of serialPorts) {
+		const terminalDevice: TerminalDevice = {
+			capabilities: ['read'],
+			id: '',
+			meta: {deviceType: 'unassigned', baudrate: 9600, setToDefault: false, brand: '', model: ''},
+			path: port.path,
+			pid: toHexString(port.productId || '0'),
+			vid: toHexString(port.vendorId || '0'),
+			manufacturer: port.manufacturer || '',
+			serialNumber: port.serialNumber || ''
+		};
+		devices.push(terminalDevice);
+	}
+
+	return devices;
+}
+
+// Main function to get all connected devices
+export async function getConnectedDevices(): Promise<TerminalDevice[]> {
+	const devices: TerminalDevice[] = [];
+	const connectedDevices = getFilteredUsbDevices();
+
+	// Platform-specific printer detection
+	if (process.platform === 'win32') {
+		devices.push(...getWindowsPrinters(connectedDevices));
+	}
+
+	if (process.platform === 'darwin') {
+		devices.push(...getMacPrinters(connectedDevices));
+	}
+
+	// Serial port detection
+	const serialDevices = await getSerialDevices(connectedDevices);
+	devices.push(...serialDevices);
+
+	return devices;
+}
