@@ -223,11 +223,11 @@ std::map<std::string, PrinterDeviceInfo> Printer::GetUsbPrinterDevices() {
         return devices;
     }
 
-    // Enhanced query for USB printer devices
+    // Enhanced query for USB printer devices - only active and present devices
     IEnumWbemClassObject* pEnumerator = NULL;
     hres = pSvc->ExecQuery(
         bstr_t("WQL"),
-        bstr_t("SELECT * FROM Win32_PnPEntity WHERE DeviceID LIKE 'USB%VID_%' AND (Name LIKE '%printer%' OR Name LIKE '%print%' OR Service='usbprint')"),
+        bstr_t("SELECT * FROM Win32_PnPEntity WHERE DeviceID LIKE 'USB%VID_%' AND (Name LIKE '%printer%' OR Name LIKE '%print%' OR Service='usbprint') AND ConfigManagerErrorCode=0 AND Status='OK'"),
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         NULL, &pEnumerator);
 
@@ -245,15 +245,22 @@ std::map<std::string, PrinterDeviceInfo> Printer::GetUsbPrinterDevices() {
         HRESULT hr = pEnumerator->Next(WBEM_INFINITE, 1, &pclsObj, &uReturn);
         if (uReturn == 0 || !pclsObj) break;
 
-        VARIANT vtName, vtDeviceId;
+        VARIANT vtName, vtDeviceId, vtPresent;
         VariantInit(&vtName);
         VariantInit(&vtDeviceId);
+        VariantInit(&vtPresent);
 
-        // Get device name and ID
+        // Get device name, ID, and presence status
         hr = pclsObj->Get(L"Name", 0, &vtName, 0, 0);
         hr = pclsObj->Get(L"DeviceID", 0, &vtDeviceId, 0, 0);
+        hr = pclsObj->Get(L"Present", 0, &vtPresent, 0, 0);
 
-        if (vtName.vt == VT_BSTR && vtDeviceId.vt == VT_BSTR) {
+        // Only process devices that are present and have valid name/ID
+        bool isPresent = (vtPresent.vt == VT_BOOL && vtPresent.boolVal == VARIANT_TRUE) || 
+                        (vtPresent.vt == VT_I4 && vtPresent.intVal != 0) ||
+                        (vtPresent.vt == VT_EMPTY); // Some devices may not have Present field
+        
+        if (vtName.vt == VT_BSTR && vtDeviceId.vt == VT_BSTR && isPresent) {
             // Convert to string
             _bstr_t bstrName(vtName.bstrVal, false);
             _bstr_t bstrDeviceId(vtDeviceId.bstrVal, false);
@@ -272,6 +279,7 @@ std::map<std::string, PrinterDeviceInfo> Printer::GetUsbPrinterDevices() {
 
         VariantClear(&vtName);
         VariantClear(&vtDeviceId);
+        VariantClear(&vtPresent);
         pclsObj->Release();
         pclsObj = NULL;
     }
