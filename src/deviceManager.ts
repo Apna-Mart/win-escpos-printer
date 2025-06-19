@@ -17,8 +17,9 @@ export class DeviceManager {
 	private devices = new Map<string, TerminalDevice>();
 	private events = new DeviceEventEmitter();
 	private usbDetachTimeout?: NodeJS.Timeout;
-	private refreshInterval?: NodeJS.Timeout;
 	private isRunning = false;
+	private refreshInProgress = false;
+	private pendingRefresh = false;
 
 	constructor() {}
 
@@ -27,7 +28,8 @@ export class DeviceManager {
 
 		await this.refreshDevices();
 		this.setupUSBListeners();
-		this.startPeriodicRefresh();
+		// Note: Removed periodic refresh to prevent over-refreshing
+		// USB events and manual refreshes provide sufficient coverage
 		this.isRunning = true;
 	}
 
@@ -38,10 +40,6 @@ export class DeviceManager {
 		if (this.usbDetachTimeout) {
 			clearTimeout(this.usbDetachTimeout);
 			this.usbDetachTimeout = undefined;
-		}
-		if (this.refreshInterval) {
-			clearInterval(this.refreshInterval);
-			this.refreshInterval = undefined;
 		}
 
 		// Remove USB listeners
@@ -92,6 +90,19 @@ export class DeviceManager {
 	}
 
 	async refreshDevices(): Promise<void> {
+		// Prevent concurrent refresh operations - return the same promise for concurrent calls
+		if (this.refreshInProgress) {
+			this.pendingRefresh = true;
+			// Wait for current refresh to complete instead of immediately returning
+			while (this.refreshInProgress) {
+				await new Promise(resolve => setTimeout(resolve, 50));
+			}
+			return;
+		}
+
+		this.refreshInProgress = true;
+		this.pendingRefresh = false;
+
 		try {
 			const detectedDevices = await getConnectedDevices();
 			const devicesWithConfig = devicesWithSavedConfig(detectedDevices);
@@ -128,49 +139,161 @@ export class DeviceManager {
 			}
 		} catch (error) {
 			console.error('Error refreshing devices:', error);
+		} finally {
+			this.refreshInProgress = false;
+			// If another refresh was requested while this one was running, do it once more
+			if (this.pendingRefresh) {
+				this.pendingRefresh = false;
+				setTimeout(() => this.refreshDevices(), 50);
+			}
 		}
 	}
-
-	private setupUSBListeners(): void {
-		usb.on('attach', () => {
-			this.debounceRefresh();
-		});
-
-		usb.on('detach', () => {
-			this.debounceRefresh();
-		});
-	}
-
-	private debounceRefresh(): void {
-		if (this.usbDetachTimeout) {
-			clearTimeout(this.usbDetachTimeout);
-		}
-		this.usbDetachTimeout = setTimeout(async () => {
-			await this.refreshDevices();
-		}, 1000);
-	}
-
-	private startPeriodicRefresh(): void {
-		// Refresh devices every 3 seconds for serial port changes
-		this.refreshInterval = setInterval(async () => {
-			await this.refreshDevices();
-		}, 3000);
-	}
-
-	// Device Configuration Management Methods
 
 	/**
-	 * Set/create device configuration
-	 * @param vid - Vendor ID
-	 * @param pid - Product ID  
-	 * @param config - Device configuration
-	 * @returns true if successful, false otherwise
+	 * Targeted refresh for specific VID/PID (used for USB attach events)
 	 */
-	setDeviceConfig(vid: string, pid: string, config: DeviceConfig): boolean {
+	private async refreshDeviceByVidPid(vid: number, pid: number): Promise<void> {
+		if (this.refreshInProgress) {
+			// Wait for current refresh to complete
+			while (this.refreshInProgress) {
+				await new Promise(resolve => setTimeout(resolve, 50));
+			}
+		}
+
+		try {
+			const detectedDevices = await getConnectedDevices();
+			const devicesWithConfig = devicesWithSavedConfig(detectedDevices);
+			
+			// Convert numbers to hex strings for comparison
+			const targetVid = `0x${vid.toString(16).toLowerCase()}`;
+			const targetPid = `0x${pid.toString(16).toLowerCase()}`;
+
+			// Filter to only devices matching the target VID/PID
+			const targetDevices = devicesWithConfig.filter(d => 
+				d.vid === targetVid && d.pid === targetPid
+			);
+
+			// Add/update only the target devices
+			for (const device of targetDevices) {
+				if (!this.devices.has(device.id)) {
+					this.devices.set(device.id, device);
+					this.events.emitDeviceConnect(device);
+					console.log(`Added device via targeted refresh: ${device.id}`);
+				} else {
+					// Update existing device metadata
+					const existingDevice = this.devices.get(device.id)!;
+					const hasChanges = 
+						existingDevice.meta.deviceType !== device.meta.deviceType ||
+						existingDevice.meta.setToDefault !== device.meta.setToDefault ||
+						existingDevice.meta.baudrate !== device.meta.baudrate;
+
+					if (hasChanges) {
+						this.devices.set(device.id, device);
+						this.events.emitDeviceConnect(device);
+						console.log(`Updated device via targeted refresh: ${device.id}`);
+					}
+				}
+			}
+		} catch (error) {
+			console.error(`Error in targeted refresh for ${vid}:${pid}:`, error);
+		}
+	}
+
+	/**
+	 * Check for disconnected devices by comparing current state with fresh scan
+	 */
+	private async checkForDisconnectedDevices(): Promise<void> {
+		if (this.refreshInProgress) {
+			// Wait for current refresh to complete
+			while (this.refreshInProgress) {
+				await new Promise(resolve => setTimeout(resolve, 50));
+			}
+		}
+
+		try {
+			const detectedDevices = await getConnectedDevices();
+			const devicesWithConfig = devicesWithSavedConfig(detectedDevices);
+			const currentDeviceIds = new Set(devicesWithConfig.map(d => d.id));
+			
+			// Find devices that are in our manager but no longer detected
+			const deviceEntries = Array.from(this.devices.entries());
+			for (const [deviceId] of deviceEntries) {
+				if (!currentDeviceIds.has(deviceId)) {
+					this.devices.delete(deviceId);
+					this.events.emitDeviceDisconnect(deviceId);
+					console.log(`Removed disconnected device: ${deviceId}`);
+				}
+			}
+		} catch (error) {
+			console.error('Error checking for disconnected devices:', error);
+		}
+	}
+
+	/**
+	 * Refresh specific device configuration
+	 */
+	private async refreshDeviceConfig(vid: string, pid: string): Promise<void> {
+		if (this.refreshInProgress) {
+			// Wait for current refresh to complete
+			while (this.refreshInProgress) {
+				await new Promise(resolve => setTimeout(resolve, 50));
+			}
+		}
+
+		try {
+			const detectedDevices = await getConnectedDevices();
+			const devicesWithConfig = devicesWithSavedConfig(detectedDevices);
+			
+			// Filter to only devices matching the target VID/PID
+			const targetDevices = devicesWithConfig.filter(d => 
+				d.vid === vid && d.pid === pid
+			);
+
+			// Update only the target devices
+			for (const device of targetDevices) {
+				if (this.devices.has(device.id)) {
+					const existingDevice = this.devices.get(device.id)!;
+					const hasChanges = 
+						existingDevice.meta.deviceType !== device.meta.deviceType ||
+						existingDevice.meta.setToDefault !== device.meta.setToDefault ||
+						existingDevice.meta.baudrate !== device.meta.baudrate;
+
+					if (hasChanges) {
+						this.devices.set(device.id, device);
+						this.events.emitDeviceConnect(device);
+						console.log(`Updated device config: ${device.id}`);
+					}
+				}
+			}
+		} catch (error) {
+			console.error(`Error refreshing config for ${vid}:${pid}:`, error);
+		}
+	}
+
+
+	private setupUSBListeners(): void {
+		usb.on('attach', (device) => {
+			// Targeted refresh for the specific attached device
+			const vid = device.deviceDescriptor.idVendor;
+			const pid = device.deviceDescriptor.idProduct;
+			console.log(`USB device attached: ${vid}:${pid}`);
+			this.refreshDeviceByVidPid(vid, pid);
+		});
+
+		usb.on('detach', (device) => {
+			// Check for disconnected devices
+			const vid = device.deviceDescriptor.idVendor;
+			const pid = device.deviceDescriptor.idProduct;
+			console.log(`USB device detached: ${vid}:${pid}`);
+			this.checkForDisconnectedDevices();
+		});
+	}
+
+	async setDeviceConfig(vid: string, pid: string, config: DeviceConfig): Promise<boolean> {
 		try {
 			saveDeviceConfig(vid, pid, config);
-			// Refresh devices to apply new config
-			this.refreshDevices();
+			// Targeted refresh for only the specific device config that changed
+			await this.refreshDeviceConfig(vid, pid);
 			return true;
 		} catch (error) {
 			console.error(`Failed to set device config for ${vid}:${pid}:`, error);
@@ -178,19 +301,12 @@ export class DeviceManager {
 		}
 	}
 
-	/**
-	 * Update existing device configuration
-	 * @param vid - Vendor ID
-	 * @param pid - Product ID
-	 * @param config - Partial device configuration to update
-	 * @returns Updated configuration if successful, null otherwise
-	 */
-	updateDeviceConfig(vid: string, pid: string, config: Partial<DeviceConfig>): DeviceConfig | null {
+	async updateDeviceConfig(vid: string, pid: string, config: Partial<DeviceConfig>): Promise<DeviceConfig | null> {
 		try {
 			const updatedConfig = updateConfig(vid, pid, config);
 			if (updatedConfig) {
-				// Refresh devices to apply updated config
-				this.refreshDevices();
+				// Targeted refresh for only the specific device config that changed
+				await this.refreshDeviceConfig(vid, pid);
 			}
 			return updatedConfig;
 		} catch (error) {
@@ -199,18 +315,12 @@ export class DeviceManager {
 		}
 	}
 
-	/**
-	 * Delete device configuration
-	 * @param vid - Vendor ID
-	 * @param pid - Product ID
-	 * @returns true if deleted, false if not found or error
-	 */
-	deleteDeviceConfig(vid: string, pid: string): boolean {
+	async deleteDeviceConfig(vid: string, pid: string): Promise<boolean> {
 		try {
 			const deleted = deleteConfig(vid, pid);
 			if (deleted) {
-				// Refresh devices to reflect config deletion
-				this.refreshDevices();
+				// Targeted refresh for only the specific device config that was deleted
+				await this.refreshDeviceConfig(vid, pid);
 			}
 			return deleted;
 		} catch (error) {
@@ -219,16 +329,12 @@ export class DeviceManager {
 		}
 	}
 
-	/**
-	 * Delete all device configurations
-	 * @returns true if any configs were deleted, false otherwise
-	 */
-	deleteAllDeviceConfigs(): boolean {
+	async deleteAllDeviceConfigs(): Promise<boolean> {
 		try {
 			const deleted = clearAllDevices();
 			if (deleted) {
-				// Refresh devices to reflect all config deletions
-				this.refreshDevices();
+				// Full refresh needed since all configs were deleted
+				await this.refreshDevices();
 			}
 			return deleted;
 		} catch (error) {
@@ -237,12 +343,6 @@ export class DeviceManager {
 		}
 	}
 
-	/**
-	 * Get device configuration
-	 * @param vid - Vendor ID
-	 * @param pid - Product ID
-	 * @returns Device configuration if found, null otherwise
-	 */
 	getDeviceConfig(vid: string, pid: string): DeviceConfig | null {
 		try {
 			return getDeviceConfig(vid, pid);
@@ -252,10 +352,6 @@ export class DeviceManager {
 		}
 	}
 
-	/**
-	 * Get all device configurations
-	 * @returns Record of all device configurations
-	 */
 	getAllDeviceConfigs(): Record<string, DeviceConfig> {
 		try {
 			return getAllDeviceConfig();
@@ -265,12 +361,6 @@ export class DeviceManager {
 		}
 	}
 
-	/**
-	 * Check if device has configuration
-	 * @param vid - Vendor ID
-	 * @param pid - Product ID
-	 * @returns true if device has config, false otherwise
-	 */
 	hasDeviceConfig(vid: string, pid: string): boolean {
 		try {
 			return hasDeviceConfig(vid, pid);
@@ -280,10 +370,6 @@ export class DeviceManager {
 		}
 	}
 
-	/**
-	 * Get count of configured devices
-	 * @returns Number of devices with saved configurations
-	 */
 	getConfiguredDeviceCount(): number {
 		try {
 			return getDeviceCount();
@@ -293,12 +379,7 @@ export class DeviceManager {
 		}
 	}
 
-	/**
-	 * Set device as default for its type
-	 * @param deviceId - Device ID
-	 * @returns true if successful, false otherwise
-	 */
-	setDeviceAsDefault(deviceId: string): boolean {
+	async setDeviceAsDefault(deviceId: string): Promise<boolean> {
 		const device = this.getDevice(deviceId);
 		if (!device) {
 			console.error(`Device ${deviceId} not found`);
@@ -313,7 +394,7 @@ export class DeviceManager {
 		// First, unset any existing default for this device type
 		const existingDefault = this.getDefaultDevice(device.meta.deviceType);
 		if (existingDefault && existingDefault.id !== deviceId) {
-			const updated = this.updateDeviceConfig(existingDefault.vid, existingDefault.pid, {
+			const updated = await this.updateDeviceConfig(existingDefault.vid, existingDefault.pid, {
 				setToDefault: false
 			});
 			if (!updated) {
@@ -323,25 +404,22 @@ export class DeviceManager {
 		}
 
 		// Set this device as default
-		return this.updateDeviceConfig(device.vid, device.pid, {
+		const result = await this.updateDeviceConfig(device.vid, device.pid, {
 			setToDefault: true
-		}) !== null;
+		});
+		return result !== null;
 	}
 
-	/**
-	 * Unset device as default
-	 * @param deviceId - Device ID
-	 * @returns true if successful, false otherwise
-	 */
-	unsetDeviceAsDefault(deviceId: string): boolean {
+	async unsetDeviceAsDefault(deviceId: string): Promise<boolean> {
 		const device = this.getDevice(deviceId);
 		if (!device) {
 			console.error(`Device ${deviceId} not found`);
 			return false;
 		}
 
-		return this.updateDeviceConfig(device.vid, device.pid, {
+		const result = await this.updateDeviceConfig(device.vid, device.pid, {
 			setToDefault: false
-		}) !== null;
+		});
+		return result !== null;
 	}
 }

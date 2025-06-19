@@ -31,18 +31,18 @@ Core device discovery, USB monitoring, and configuration management.
 - `onDeviceDisconnect(callback: (deviceId: string) => void): void` - Listen for device disconnections
 
 ### Configuration Management
-- `setDeviceConfig(vid: string, pid: string, config: DeviceConfig): boolean` - Create/set device config
-- `updateDeviceConfig(vid: string, pid: string, config: Partial<DeviceConfig>): DeviceConfig | null` - Update existing config
-- `deleteDeviceConfig(vid: string, pid: string): boolean` - Delete specific device config
-- `deleteAllDeviceConfigs(): boolean` - Delete all device configurations
+- `async setDeviceConfig(vid: string, pid: string, config: DeviceConfig): Promise<boolean>` - Create/set device config
+- `async updateDeviceConfig(vid: string, pid: string, config: Partial<DeviceConfig>): Promise<DeviceConfig | null>` - Update existing config
+- `async deleteDeviceConfig(vid: string, pid: string): Promise<boolean>` - Delete specific device config
+- `async deleteAllDeviceConfigs(): Promise<boolean>` - Delete all device configurations
 - `getDeviceConfig(vid: string, pid: string): DeviceConfig | null` - Get device configuration
 - `getAllDeviceConfigs(): Record<string, DeviceConfig>` - Get all device configurations
 - `hasDeviceConfig(vid: string, pid: string): boolean` - Check if device has config
 - `getConfiguredDeviceCount(): number` - Get count of configured devices
 
 ### Default Device Management
-- `setDeviceAsDefault(deviceId: string): boolean` - Set device as default for its type
-- `unsetDeviceAsDefault(deviceId: string): boolean` - Unset device as default
+- `async setDeviceAsDefault(deviceId: string): Promise<boolean>` - Set device as default for its type
+- `async unsetDeviceAsDefault(deviceId: string): Promise<boolean>` - Unset device as default
 
 ## PrinterManager
 
@@ -168,6 +168,15 @@ type BaudRate = 'not-supported' | 110 | 300 | 600 | 1200 | 2400 | 4800 | 9600 | 
 - ✅ All callbacks and reading states are preserved across disconnections
 - ✅ Smart auto-start logic based on device metadata and callback presence
 
+### Performance Optimization
+- ✅ Targeted refresh logic prevents over-refreshing devices
+- ✅ USB attach events trigger targeted refresh only for the specific attached device
+- ✅ USB detach events trigger targeted removal only for disconnected devices
+- ✅ Configuration changes trigger targeted refresh only for the modified device
+- ✅ Concurrent refresh protection prevents race conditions
+- ✅ Full refresh only on start() and explicit refreshDevices() calls
+- ✅ Active device operations continue uninterrupted during targeted updates
+
 ### Error Handling
 - ✅ Graceful handling of device disconnections
 - ✅ Callback error isolation (one callback error doesn't affect others)
@@ -220,7 +229,7 @@ try {
 ### Configuration Management
 ```typescript
 // Set device configuration
-const success = deviceManager.setDeviceConfig('1234', '5678', {
+const success = await deviceManager.setDeviceConfig('1234', '5678', {
   deviceType: 'scanner',
   brand: 'Honeywell',
   model: 'MS7980g',
@@ -229,10 +238,10 @@ const success = deviceManager.setDeviceConfig('1234', '5678', {
 });
 
 // Update existing configuration
-const updated = deviceManager.updateDeviceConfig('1234', '5678', {
+const updated = await deviceManager.updateDeviceConfig('1234', '5678', {
   setToDefault: false
 });
 
 // Delete configuration
-const deleted = deviceManager.deleteDeviceConfig('1234', '5678');
+const deleted = await deviceManager.deleteDeviceConfig('1234', '5678');
 ```
