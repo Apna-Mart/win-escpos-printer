@@ -31,8 +31,9 @@ export interface TerminalDevice {
 	vid: string;
 	pid: string;
 	path: string;
+	name: string;
 	serialNumber: string;
 	manufacturer: string;
-	meta?: DeviceConfig;
+	meta: DeviceConfig;
 	capabilities: Array<'read' | 'write'>;
 }

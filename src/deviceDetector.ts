@@ -39,11 +39,12 @@ function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 		const terminalDevice: TerminalDevice = {
 			capabilities: ['write'],
 			id: id,
+			name: printer.name,
 			meta: {deviceType: 'printer', baudrate: 'not-supported', setToDefault: false, brand: '', model: ''},
 			path: printer.portName,
 			pid: toHexString(printer.pid),
 			vid: toHexString(printer.vid),
-			manufacturer: printer.name,
+			manufacturer: '',
 			serialNumber: ''
 		};
 		devices.push(terminalDevice);
@@ -69,6 +70,7 @@ function getMacPrinters(connectedDevices: Device[]): TerminalDevice[] {
 		const terminalDevice: TerminalDevice = {
 			capabilities: ['write'],
 			id: id,
+			name:'',
 			meta: {deviceType: 'printer', baudrate: 'not-supported', setToDefault: false, brand: '', model: ''},
 			path: printer.deviceAddress.toString(),
 			pid: toHexString(printer.deviceDescriptor.idProduct),
@@ -101,6 +103,7 @@ async function getSerialDevices(connectedDevices: Device[]): Promise<TerminalDev
 			id: id,
 			meta: {deviceType: 'unassigned', baudrate: 9600, setToDefault: false, brand: '', model: ''},
 			path: port.path,
+			name:'',
 			pid: toHexString(port.productId || '0'),
 			vid: toHexString(port.vendorId || '0'),
 			manufacturer: port.manufacturer || '',
@@ -111,6 +114,17 @@ async function getSerialDevices(connectedDevices: Device[]): Promise<TerminalDev
 
 	return devices;
 }
+
+export function devicesWithSavedConfig(devices: TerminalDevice[]) {
+	return devices.map(device => {
+		const saved = getDeviceConfig(device.vid, device.pid)
+		if (saved) {
+			device.meta = saved;
+		}
+		return device;
+	})
+}
+
 
 // Main function to get all connected devices
 export async function getConnectedDevices(): Promise<TerminalDevice[]> {
@@ -129,18 +143,6 @@ export async function getConnectedDevices(): Promise<TerminalDevice[]> {
 	// Serial port detection
 	const serialDevices = await getSerialDevices(connectedDevices);
 	devices.push(...serialDevices);
-
-	devices.forEach(device => {
-		saveDeviceConfig(device.vid, device.pid, {deviceType: 'unassigned', baudrate: 9600, setToDefault: false, brand: '', model: ''})
-	})
-
-	devices.map(device => {
-		const saved = getDeviceConfig(device.vid, device.pid)
-		if (saved) {
-			device.meta = saved;
-		}
-		return device;
-	})
 
 	return devices;
 }
