@@ -35,7 +35,7 @@ private:
     bool SendDataToPrinter(const std::vector<unsigned char>& data);
     static std::map<std::string, PrinterDeviceInfo> GetUsbPrinterDevices();
     static void ParseVidPid(const std::string& deviceId, std::string& vid, std::string& pid);
-    static bool MatchPrinterWithDevice(const std::string& printerName, const std::string& deviceName);
+    static bool IsUsbPort(const std::string& portName);
     static std::string ToLower(const std::string& str);
 };
 
@@ -95,56 +95,49 @@ std::string Printer::ToLower(const std::string& str) {
     return lower;
 }
 
-bool Printer::MatchPrinterWithDevice(const std::string& printerName, const std::string& deviceName) {
-    std::string lowerPrinter = ToLower(printerName);
-    std::string lowerDevice = ToLower(deviceName);
-    
-    // Strategy 1: Exact match (case-insensitive)
-    if (lowerPrinter == lowerDevice) {
-        return true;
+bool Printer::IsUsbPort(const std::string& portName) {
+    if (portName.empty()) {
+        return false;
     }
     
-    // Strategy 2: One contains the other
-    if (lowerDevice.find(lowerPrinter) != std::string::npos || 
-        lowerPrinter.find(lowerDevice) != std::string::npos) {
-        return true;
-    }
+    std::string lowerPort = ToLower(portName);
     
-    // Strategy 3: Check for common printer keywords
-    std::vector<std::string> keywords = {"printer", "print", "thermal", "receipt", "pos"};
-    for (const auto& keyword : keywords) {
-        if (lowerDevice.find(keyword) != std::string::npos && 
-            lowerPrinter.find(keyword) != std::string::npos) {
+    // Standard USB ports: USB001, USB002, etc.
+    if (lowerPort.find("usb") == 0 && lowerPort.length() >= 6) {
+        // Check if it follows USBxxx pattern
+        bool isNumeric = true;
+        for (size_t i = 3; i < lowerPort.length() && i < 6; i++) {
+            if (!std::isdigit(lowerPort[i])) {
+                isNumeric = false;
+                break;
+            }
+        }
+        if (isNumeric) {
             return true;
         }
     }
     
-    // Strategy 4: Extract model numbers/names (basic heuristic)
-    // Remove common prefixes and check for model matches
-    std::vector<std::string> prefixesToRemove = {"usb", "thermal", "receipt", "pos", "printer"};
-    std::string cleanPrinter = lowerPrinter;
-    std::string cleanDevice = lowerDevice;
+    // Custom USB ports: RongtaUSB PORT:, EpsonUSB001, etc.
+    if (lowerPort.find("usb") != std::string::npos && 
+        (lowerPort.find("port") != std::string::npos || 
+         lowerPort.find("printer") != std::string::npos)) {
+        return true;
+    }
     
-    for (const auto& prefix : prefixesToRemove) {
-        size_t pos = cleanPrinter.find(prefix);
-        if (pos != std::string::npos) {
-            cleanPrinter.erase(pos, prefix.length());
-        }
-        pos = cleanDevice.find(prefix);
-        if (pos != std::string::npos) {
-            cleanDevice.erase(pos, prefix.length());
+    // Exclude known virtual ports
+    std::vector<std::string> virtualPorts = {
+        "portprompt:", "nul:", "shrfax:", "ad_port", "file:", "lpt", "com",
+        "microsoft.", "onenoteim", "xpsport:", "faxport:", "webprint"
+    };
+    
+    for (const auto& virtualPort : virtualPorts) {
+        if (lowerPort.find(virtualPort) != std::string::npos) {
+            return false;
         }
     }
     
-    // Remove spaces and special characters for comparison
-    cleanPrinter.erase(std::remove_if(cleanPrinter.begin(), cleanPrinter.end(), 
-        [](char c) { return !std::isalnum(c); }), cleanPrinter.end());
-    cleanDevice.erase(std::remove_if(cleanDevice.begin(), cleanDevice.end(), 
-        [](char c) { return !std::isalnum(c); }), cleanDevice.end());
-    
-    if (!cleanPrinter.empty() && !cleanDevice.empty() && 
-        (cleanDevice.find(cleanPrinter) != std::string::npos || 
-         cleanPrinter.find(cleanDevice) != std::string::npos)) {
+    // If it contains USB and not in virtual list, likely a USB port
+    if (lowerPort.find("usb") != std::string::npos) {
         return true;
     }
     
@@ -387,19 +380,48 @@ Napi::Value Printer::GetPrinterList(const Napi::CallbackInfo& info) {
         printer.Set("isDefault", (printerInfo[i].Attributes & PRINTER_ATTRIBUTE_DEFAULT) != 0);
         printer.Set("portName", portName);
 
-        // Add VID/PID information if available
-        std::string printerName = utf8Name.data();
-        
-        // Try to find matching USB device by name using enhanced matching
+        // Add VID/PID information based on port type
         bool foundUsbInfo = false;
-        for (const auto& device : usbDevices) {
-            if (MatchPrinterWithDevice(printerName, device.first)) {
-                printer.Set("vid", device.second.vid);
-                printer.Set("pid", device.second.pid);
-                printer.Set("deviceId", device.second.deviceId);
+        
+        // Only assign USB info to printers with USB ports
+        if (IsUsbPort(portName)) {
+            if (usbDevices.size() == 1) {
+                // Single USB device found - assign it to this USB port
+                auto device = usbDevices.begin();
+                printer.Set("vid", device->second.vid);
+                printer.Set("pid", device->second.pid);
+                printer.Set("deviceId", device->second.deviceId);
                 printer.Set("isUsb", true);
                 foundUsbInfo = true;
-                break;
+            } else if (usbDevices.size() > 1) {
+                // Multiple USB devices - try to match by name as fallback
+                std::string printerName = utf8Name.data();
+                std::string lowerPrinter = ToLower(printerName);
+                
+                for (const auto& device : usbDevices) {
+                    std::string lowerDevice = ToLower(device.first);
+                    
+                    // Simple matching for multiple device case
+                    if (lowerDevice.find(lowerPrinter) != std::string::npos || 
+                        lowerPrinter.find(lowerDevice) != std::string::npos) {
+                        printer.Set("vid", device.second.vid);
+                        printer.Set("pid", device.second.pid);
+                        printer.Set("deviceId", device.second.deviceId);
+                        printer.Set("isUsb", true);
+                        foundUsbInfo = true;
+                        break;
+                    }
+                }
+                
+                // If no name match found, assign the first device as fallback
+                if (!foundUsbInfo && !usbDevices.empty()) {
+                    auto device = usbDevices.begin();
+                    printer.Set("vid", device->second.vid);
+                    printer.Set("pid", device->second.pid);
+                    printer.Set("deviceId", device->second.deviceId);
+                    printer.Set("isUsb", true);
+                    foundUsbInfo = true;
+                }
             }
         }
 

@@ -72,7 +72,7 @@ npm publish    # Publishes to @mixgeeker/node-escpos-win
 - Image processing converts to 1-bit bitmap format for thermal printers
 - All async image operations return Promises
 - TypeScript definitions provide complete API coverage
-- VID/PID information is available for USB printers via WMI Win32_PnPEntity queries with intelligent device matching
+- VID/PID information is available for USB printers via WMI Win32_PnPEntity queries with port-based correlation
 - `getPrinterList()` now returns objects with detailed printer information including USB device data
-- Enhanced name matching algorithm handles various printer driver naming conventions
+- Port-based USB detection prevents false USB assignments to virtual printers
 - Supports both uppercase and lowercase VID/PID formats in device IDs
