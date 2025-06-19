@@ -210,7 +210,7 @@ export const EscPosCommands = {
 
 // Main Printer Class
 export class ThermalWindowPrinter {
-	private nativePrinter: NativePrinter | null = null;
+	private readonly nativePrinter: NativePrinter | null = null;
 	private readonly printerName: string;
 	private currentCharset: CharacterSet = 'ASCII';
 	private readonly isNativeSupported: boolean;
@@ -220,7 +220,7 @@ export class ThermalWindowPrinter {
 	static {
 		try {
 			ThermalWindowPrinter.nativePrinterClass =
-				require('bindings')('escpos_printer').Printer;
+				require('bindings')('win_printer').Printer;
 		} catch (_error) {
 			console.warn(
 				'Warning: Failed to load native printer module. Native functionality will not be available.',
