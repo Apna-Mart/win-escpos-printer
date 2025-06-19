@@ -34,9 +34,10 @@ function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 	);
 
 	for (const printer of connectedPrintersOnWindows) {
+		const id = 'device_' + toHexString(printer.vid) + '_' + toHexString(printer.pid);
 		const terminalDevice: TerminalDevice = {
 			capabilities: ['write'],
-			id: '',
+			id: id,
 			meta: {deviceType: 'printer', baudrate: 'not-supported', setToDefault: false, brand: '', model: ''},
 			path: printer.portName,
 			pid: toHexString(printer.pid),
@@ -63,9 +64,10 @@ function getMacPrinters(connectedDevices: Device[]): TerminalDevice[] {
 	);
 
 	for (const printer of connectPrintersOnMac) {
+		const id = 'device_' + toHexString(printer.deviceDescriptor.idVendor) + '_' + toHexString(printer.deviceDescriptor.idProduct);
 		const terminalDevice: TerminalDevice = {
 			capabilities: ['write'],
-			id: '',
+			id: id,
 			meta: {deviceType: 'printer', baudrate: 'not-supported', setToDefault: false, brand: '', model: ''},
 			path: printer.deviceAddress.toString(),
 			pid: toHexString(printer.deviceDescriptor.idProduct),
@@ -92,9 +94,10 @@ async function getSerialDevices(connectedDevices: Device[]): Promise<TerminalDev
 	);
 
 	for (const port of serialPorts) {
+		const id = 'device_' + toHexString(port.vendorId || '0') + '_' + toHexString(port.productId || '0');
 		const terminalDevice: TerminalDevice = {
 			capabilities: ['read'],
-			id: '',
+			id: id,
 			meta: {deviceType: 'unassigned', baudrate: 9600, setToDefault: false, brand: '', model: ''},
 			path: port.path,
 			pid: toHexString(port.productId || '0'),
