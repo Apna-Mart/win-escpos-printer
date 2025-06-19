@@ -1,16 +1,9 @@
 let Printer;
-let isWindowsPlatform = process.platform === 'win32';
 
 try {
-    if (isWindowsPlatform) {
-        Printer = require('bindings')('escpos_printer').Printer;
-    } else {
-        Printer = null;
-    }
+    Printer = require('bindings')('escpos_printer').Printer;
 } catch (error) {
-    if (isWindowsPlatform) {
-        console.warn('Warning: Failed to load native printer module on Windows. Native functionality will not be available.');
-    }
+    console.warn('Warning: Failed to load native printer module. Native functionality will not be available.');
     Printer = null;
 }
 
@@ -25,8 +18,13 @@ class ESCPOSPrinter {
         
         if (this.isNativeSupported) {
             this.printer = new Printer(printerName);
+            
+            // Check if we're on a non-Windows platform by testing getPrinterList
+            if (process.platform !== 'win32') {
+                console.log(`ESCPOSPrinter: Running in compatibility mode on ${process.platform}. Printing operations will be simulated.`);
+            }
         } else {
-            console.warn(`ESCPOSPrinter: Native printer functionality not available on ${process.platform}. Running in compatibility mode.`);
+            console.warn(`ESCPOSPrinter: Native printer functionality not available. Running in compatibility mode.`);
             this.printer = null;
         }
     }

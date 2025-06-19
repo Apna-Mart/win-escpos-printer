@@ -3,6 +3,28 @@ declare module '@mixgeeker/node-escpos-win' {
 }
 
 /**
+ * Printer information returned by getPrinterList
+ */
+interface PrinterInfo {
+  /** Printer name as registered in Windows */
+  name: string;
+  /** Printer description/comment */
+  description: string;
+  /** Whether this is the default printer */
+  isDefault: boolean;
+  /** USB Vendor ID (4-digit hex string, empty for non-USB printers) */
+  vid: string;
+  /** USB Product ID (4-digit hex string, empty for non-USB printers) */
+  pid: string;
+  /** Full Windows device instance ID (empty for non-USB printers) */
+  deviceId: string;
+  /** Whether this is a USB printer */
+  isUsb: boolean;
+  /** Printer port name (e.g., "USB001", "LPT1:", etc.) */
+  portName: string;
+}
+
+/**
  * Options for image processing
  */
 interface ImageProcessingOptions {
@@ -61,7 +83,7 @@ interface NativePrinter {
  */
 interface NativePrinterConstructor {
   new(printerName: string): NativePrinter;
-  getPrinterList(): string[];
+  getPrinterList(): PrinterInfo[];
 }
 
 /**
@@ -145,9 +167,9 @@ declare class ESCPOSPrinter {
 
   /**
    * Get list of available printers on the system
-   * @returns Array of printer names
+   * @returns Array of printer information objects
    */
-  static getPrinterList(): string[];
+  static getPrinterList(): PrinterInfo[];
 
   /**
    * ESC/POS command constants

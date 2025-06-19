@@ -6,6 +6,23 @@ const printerName = process.argv[2];
 if (!printerName) {
     console.error('请提供打印机名称作为参数');
     console.error('使用方法: node test.js "打印机名称"');
+    console.error('');
+    console.error('可用的打印机列表:');
+    try {
+        const printers = ESCPOSPrinter.getPrinterList();
+        printers.forEach((printer, index) => {
+            console.error(`${index + 1}. ${printer.name}`);
+            if (printer.isUsb) {
+                console.error(`   USB设备 - VID: ${printer.vid}, PID: ${printer.pid}`);
+                console.error(`   端口: ${printer.portName}`);
+            } else {
+                console.error(`   非USB设备 - 端口: ${printer.portName}`);
+            }
+            console.error('');
+        });
+    } catch (error) {
+        console.error('获取打印机列表失败:', error.message);
+    }
     process.exit(1);
 }
 

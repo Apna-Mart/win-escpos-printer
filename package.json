@@ -8,8 +8,7 @@
     "access": "public"
   },
   "scripts": {
-    "install": "node -e \"if (process.platform === 'win32') { try { const { execSync } = require('child_process'); execSync('node-gyp rebuild', { stdio: 'inherit' }); } catch (error) { console.warn('Failed to build native module:', error.message); } } else { console.log('Skipping build on non-Windows platform - package will work in compatibility mode'); }\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "install": "node-gyp rebuild"
   },
   "keywords": [
     "escpos",

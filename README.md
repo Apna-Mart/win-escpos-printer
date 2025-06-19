@@ -291,7 +291,7 @@ printer.printAscii('Scan for order details');
 2. Running the Node.js application with administrator privileges may provide better printer access
 3. Some ESC/POS commands may need adjustment based on specific printer models
 4. Chinese printing uses GBK encoding, ensure text content contains valid Chinese characters
-5. The library automatically skips building on non-Windows platforms to prevent installation errors
+5. The library automatically builds with compatibility mode on non-Windows platforms
 
 ## Getting Printer Names
 
@@ -313,7 +313,7 @@ console.log('Available printers:', printers);
 
 1. **Printer not found**: Ensure the printer name matches exactly with the system printer name
 2. **Chinese characters not printing**: Verify the printer supports GBK encoding
-3. **Build errors on macOS/Linux**: The install script now automatically skips building on non-Windows platforms
+3. **Build errors on macOS/Linux**: The library now builds with stub implementation on non-Windows platforms for compatibility
 4. **Permission errors**: Try running with administrator privileges
 
 ### Debug Mode
