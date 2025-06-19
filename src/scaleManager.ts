@@ -11,8 +11,8 @@ export class ScaleManager {
 	private scaleAdapters = new Map<string, ReadableDevice>();
 	private activeScales = new Set<string>(); // Track which devices are actively reading
 	private persistentCallbacks = new Map<string, WeightDataCallback[]>(); // Device-specific persistent callbacks
-	private defaultScaleCallbacks: WeightDataCallback[] = []; // Default scale callbacks
 	private globalWeightCallbacks: WeightDataCallback[] = []; // Global weight callbacks
+	private pendingDefaultCallbacks: WeightDataCallback[] = []; // Callbacks waiting for default scale
 
 	constructor(deviceManager: DeviceManager) {
 		this.deviceManager = deviceManager;
@@ -40,16 +40,19 @@ export class ScaleManager {
 	}
 
 	async readFromDefault(callback: WeightDataCallback): Promise<void> {
-		// Add callback to default scale callbacks
-		this.defaultScaleCallbacks.push(callback);
-
-		const defaultScale = this.deviceManager.getDefaultDevice('scale');
-		if (!defaultScale) {
+		const defaultScaleId = this.deviceManager.getDefaultDeviceId('scale');
+		if (!defaultScaleId) {
 			console.log('No default scale found, callback queued for when default scale connects');
-			return; // Don't throw error, just queue the callback
+			// Store callback with a special key for "default scale when it becomes available"
+			this.storeCallbackForWhenDefaultConnects('scale', callback);
+			return;
 		}
 
-		await this.startReadingDevice(defaultScale);
+		await this.readFromDevice(defaultScaleId, callback);
+	}
+
+	private storeCallbackForWhenDefaultConnects(deviceType: 'scale', callback: WeightDataCallback): void {
+		this.pendingDefaultCallbacks.push(callback);
 	}
 
 	async stopReading(deviceId: string): Promise<void> {
@@ -61,12 +64,12 @@ export class ScaleManager {
 	}
 
 	async stopReadingFromDefault(): Promise<void> {
-		const defaultScale = this.deviceManager.getDefaultDevice('scale');
-		if (defaultScale) {
-			await this.stopReading(defaultScale.id);
+		const defaultScaleId = this.deviceManager.getDefaultDeviceId('scale');
+		if (defaultScaleId) {
+			await this.stopReading(defaultScaleId);
 		}
-		// Clear default scale callbacks
-		this.defaultScaleCallbacks = [];
+		// Clear pending default callbacks
+		this.pendingDefaultCallbacks = [];
 	}
 
 	removeCallback(deviceId: string, callback: WeightDataCallback): void {
@@ -80,9 +83,17 @@ export class ScaleManager {
 	}
 
 	removeDefaultCallback(callback: WeightDataCallback): void {
-		const index = this.defaultScaleCallbacks.indexOf(callback);
-		if (index > -1) {
-			this.defaultScaleCallbacks.splice(index, 1);
+		// Remove from pending default callbacks
+		const pendingIndex = this.pendingDefaultCallbacks.indexOf(callback);
+		if (pendingIndex > -1) {
+			this.pendingDefaultCallbacks.splice(pendingIndex, 1);
+			return;
+		}
+
+		// Remove from actual default device callbacks
+		const defaultScaleId = this.deviceManager.getDefaultDeviceId('scale');
+		if (defaultScaleId) {
+			this.removeCallback(defaultScaleId, callback);
 		}
 	}
 
@@ -113,7 +124,7 @@ export class ScaleManager {
 	}
 
 	private handleWeightData(deviceId: string, data: string): void {
-		// Send to device-specific callbacks
+		// Send to device-specific callbacks (includes default scale callbacks since they're stored by device ID)
 		const deviceCallbacks = this.persistentCallbacks.get(deviceId) || [];
 		deviceCallbacks.forEach(callback => {
 			try {
@@ -122,18 +133,6 @@ export class ScaleManager {
 				console.error(`Error in weight callback for ${deviceId}:`, error);
 			}
 		});
-
-		// Send to default scale callbacks if this is the default scale
-		const defaultScale = this.deviceManager.getDefaultDevice('scale');
-		if (defaultScale && defaultScale.id === deviceId) {
-			this.defaultScaleCallbacks.forEach(callback => {
-				try {
-					callback(data);
-				} catch (error) {
-					console.error(`Error in default weight callback:`, error);
-				}
-			});
-		}
 
 		// Send to global weight callbacks
 		this.globalWeightCallbacks.forEach(callback => {
@@ -287,19 +286,29 @@ export class ScaleManager {
 					const hasCallbacks = this.persistentCallbacks.has(device.id) && 
 						this.persistentCallbacks.get(device.id)!.length > 0;
 					
-					// Check if this is the default scale and has default callbacks waiting
-					const isDefaultWithCallbacks = device.meta.setToDefault && 
-						this.defaultScaleCallbacks.length > 0;
+					// Check if this is the default scale and has pending default callbacks
+					const isDefaultWithPendingCallbacks = device.meta.setToDefault && 
+						this.pendingDefaultCallbacks.length > 0;
 					
 					// Check if there are global callbacks waiting
 					const hasGlobalCallbacks = this.globalWeightCallbacks.length > 0;
 
+					// If this device becomes the default scale, move pending callbacks to device-specific storage
+					if (device.meta.setToDefault && this.pendingDefaultCallbacks.length > 0) {
+						if (!this.persistentCallbacks.has(device.id)) {
+							this.persistentCallbacks.set(device.id, []);
+						}
+						this.persistentCallbacks.get(device.id)!.push(...this.pendingDefaultCallbacks);
+						this.pendingDefaultCallbacks = []; // Clear pending callbacks
+						console.log(`Moved ${this.persistentCallbacks.get(device.id)!.length} pending callbacks to default scale: ${device.id}`);
+					}
+
 					// Start reading if device has callbacks waiting or is default with setToDefault=true
-					if (hasCallbacks || isDefaultWithCallbacks || hasGlobalCallbacks || device.meta.setToDefault) {
+					if (hasCallbacks || isDefaultWithPendingCallbacks || hasGlobalCallbacks || device.meta.setToDefault) {
 						await this.startReadingDevice(device);
 						
-						if (isDefaultWithCallbacks) {
-							console.log(`Auto-started reading from reconnected default scale: ${device.id}`);
+						if (isDefaultWithPendingCallbacks) {
+							console.log(`Auto-started reading from new default scale: ${device.id}`);
 						} else if (hasCallbacks) {
 							console.log(`Auto-resumed reading from reconnected scale: ${device.id}`);
 						} else if (device.meta.setToDefault) {

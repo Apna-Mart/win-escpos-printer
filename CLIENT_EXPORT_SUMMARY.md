@@ -61,9 +61,9 @@ import type { TerminalDevice, DeviceConfig, DeviceType, BaudRate } from 'escpos-
 
 ## Total Public Methods Count
 
-### DeviceManager: 18 methods
+### DeviceManager: 19 methods
 - 3 Core management methods
-- 4 Device access methods  
+- 5 Device access methods  
 - 2 Event handling methods
 - 8 Configuration management methods
 - 2 Default device management methods
@@ -85,7 +85,7 @@ import type { TerminalDevice, DeviceConfig, DeviceType, BaudRate } from 'escpos-
 - 2 Callback management methods
 - 4 Device information methods
 
-**Total: 50+ public methods** available to client projects.
+**Total: 51+ public methods** available to client projects.
 
 ## Key Features Exposed to Clients
 

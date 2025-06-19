@@ -23,6 +23,7 @@ Core device discovery, USB monitoring, and configuration management.
 - `getDevices(): TerminalDevice[]` - Get all connected devices
 - `getDevice(deviceId: string): TerminalDevice | undefined` - Get specific device by ID
 - `getDefaultDevice(deviceType: DeviceType): TerminalDevice | undefined` - Get default device for type
+- `getDefaultDeviceId(deviceType: DeviceType): string | null` - Get default device ID for type
 - `getDevicesByType(deviceType: DeviceType): TerminalDevice[]` - Get all devices of specific type
 
 ### Event Handling

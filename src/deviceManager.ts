@@ -76,6 +76,11 @@ export class DeviceManager {
 		);
 	}
 
+	getDefaultDeviceId(deviceType: DeviceType): string | null {
+		const defaultDevice = this.getDefaultDevice(deviceType);
+		return defaultDevice ? defaultDevice.id : null;
+	}
+
 	getDevicesByType(deviceType: DeviceType): TerminalDevice[] {
 		return Array.from(this.devices.values()).filter(
 			device => device.meta.deviceType === deviceType
