@@ -10,11 +10,17 @@
     "build": "node-gyp rebuild && tsc",
     "check": "biome check --write src",
     "clean": "node-gyp clean",
-    "install": "node-gyp rebuild"
+    "install": "node-gyp rebuild",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.11.17",
+    "jest": "^30.0.2",
+    "ts-jest": "^29.4.0",
     "tsx": "^4.20.3",
     "typescript": "^5.5.3"
   },
@@ -25,6 +31,7 @@
     "bindings": "^1.5.0",
     "iconv-lite": "^0.6.3",
     "jimp": "^0.22.12",
+    "node-global-storage": "^3.0.1",
     "node-gyp": "^11.2.0",
     "serialport": "^13.0.0"
   }
