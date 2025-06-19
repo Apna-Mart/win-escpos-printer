@@ -24,9 +24,10 @@ function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 	const devices: TerminalDevice[] = [];
 	const availablePrinters = ThermalWindowPrinter.getAvailablePrinters();
 
+	const pattern = /^(USB(9090|12|001))$/;
 	const connectedPrintersOnWindows = connectedDevices.flatMap(device =>
 		availablePrinters.filter(printer =>
-			printer.isUsb &&
+			printer.isUsb && pattern.test(printer.name) &&
 			Number.parseInt(printer.pid, 16) === device.deviceDescriptor.idProduct &&
 			Number.parseInt(printer.vid, 16) === device.deviceDescriptor.idVendor
 		)
