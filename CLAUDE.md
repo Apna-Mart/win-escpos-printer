@@ -25,6 +25,16 @@ This is an ESC/POS thermal printer library for Node.js with native Windows suppo
 
 - **TypeScript Definitions**: `src/index.d.ts` - Complete type definitions for all printer functionality
 
+- **Device Management System**: Split architecture for managing multiple device types
+  - `src/deviceManager.ts` - Core device discovery, USB monitoring, and connection management
+  - `src/printerManager.ts` - Printer-specific operations using ThermalPrinterAdapter
+  - `src/scannerManager.ts` - Barcode scanner operations with persistent callbacks
+  - `src/scaleManager.ts` - Weight scale operations with persistent callbacks and one-time readings
+  - `src/deviceEvents.ts` - Centralized event handling for device connect/disconnect/data/error
+  - `src/deviceDetector.ts` - Cross-platform device detection (Windows, macOS, Linux)
+  - `src/deviceConfig.ts` - Device configuration persistence
+  - `src/adaptor/` - Device adapter implementations for different hardware types
+
 ## Development Commands
 
 ```bash
@@ -93,3 +103,107 @@ JavaScript layer automatically detects native module availability and switches t
 - Image processing: `jimp`
 - Text encoding: `iconv-lite`
 - Native compilation: `node-gyp`
+
+## Device Manager System
+
+### Overview
+The device manager system provides a unified interface for managing thermal printers, barcode scanners, and weight scales. It features persistent callbacks, auto-reconnection, and real-time device monitoring.
+
+### Key Features
+
+#### Persistent Callbacks
+- Callbacks work before devices are connected (queued until connection)
+- Multiple listeners can be attached to the same device
+- Callbacks survive device disconnections and automatically resume on reconnection
+- Global callbacks work with any device of the same type
+
+#### Auto-Reconnection
+- Devices automatically reconnect when plugged back in
+- All callbacks and reading states are preserved across disconnections
+- Smart auto-start logic based on device metadata and callback presence
+
+#### Device Management
+- Cross-platform USB device detection and monitoring
+- Real-time device connect/disconnect events
+- Device configuration persistence
+- Default device selection per device type
+
+### Usage Examples
+
+#### Basic Setup
+```typescript
+import { createDeviceManagers } from './src/index_clean';
+
+const { deviceManager, printerManager, scannerManager, scaleManager } = createDeviceManagers();
+
+// Set up device events
+deviceManager.onDeviceConnect(device => {
+  console.log(`Device connected: ${device.id} (${device.meta.deviceType})`);
+});
+
+await deviceManager.start();
+```
+
+#### Scanner Operations
+```typescript
+// Global callback for any scanner
+scannerManager.onScanData(data => {
+  console.log(`Scanned: ${data}`);
+});
+
+// Default scanner callback (works even before device connects)
+await scannerManager.scanFromDefault(data => {
+  console.log(`Default scanner: ${data}`);
+});
+
+// Multiple callbacks on same device
+await scannerManager.scanFromDefault(data => console.log(`Listener A: ${data}`));
+await scannerManager.scanFromDefault(data => console.log(`Listener B: ${data}`));
+```
+
+#### Scale Operations
+```typescript
+// Continuous weight monitoring
+await scaleManager.readFromDefault(weight => {
+  console.log(`Weight: ${weight}`);
+});
+
+// One-time weight reading with timeout
+try {
+  const weight = await scaleManager.getCurrentWeight(5000);
+  console.log(`Current weight: ${weight}`);
+} catch (error) {
+  console.log(`Weight timeout: ${error}`);
+}
+```
+
+#### Printer Operations
+```typescript
+// Print to default printer
+await printerManager.printToDefault('Hello World\n\n\n');
+
+// Print to specific printer
+await printerManager.printToDevice('PRINTER_ID', 'Hello from specific printer\n\n\n');
+```
+
+### Architecture Requirements
+
+#### When Working with Device Managers
+1. **Use Existing Code**: Always leverage existing adaptors, deviceDetector, and deviceConfig
+2. **Persistent Storage**: Callbacks must be stored persistently and survive device disconnections
+3. **Queue Before Connect**: Allow callbacks to be set up before devices are connected
+4. **Multiple Listeners**: Support multiple callbacks on the same device
+5. **Auto-Reconnection**: Automatically resume functionality when devices reconnect
+6. **Smart Auto-Start**: Start reading/scanning based on device metadata and callback presence
+
+#### File Structure
+- Split concerns into focused managers (device, printer, scanner, scale)
+- Centralized event handling through DeviceEventEmitter
+- Clean factory function for easy initialization
+- Comprehensive examples demonstrating all features
+
+#### Error Handling
+- Graceful handling of device disconnections
+- Callback error isolation (one callback error doesn't affect others)
+- Timeout support for one-time operations
+- Proper resource cleanup on shutdown
