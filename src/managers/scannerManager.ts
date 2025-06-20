@@ -240,6 +240,51 @@ export class ScannerManager {
 		return Array.from(this.activeScanners);
 	}
 
+	// Get next scan from default scanner (one-time read with timeout)
+	async getNextScan(timeoutMs = 10000): Promise<string> {
+		const defaultScanner = this.getDefaultScanner();
+		if (!defaultScanner) {
+			throw new Error('No default scanner found');
+		}
+
+		return this.getNextScanFromDevice(defaultScanner.id, timeoutMs);
+	}
+
+	// Get next scan from specific scanner (one-time read with timeout)
+	async getNextScanFromDevice(
+		deviceId: string,
+		timeoutMs = 10000,
+	): Promise<string> {
+		const device = this.deviceManager.getDevice(deviceId);
+		if (!device) {
+			throw new Error(`Device ${deviceId} not found`);
+		}
+
+		if (device.meta.deviceType !== 'scanner') {
+			throw new Error(`Device ${deviceId} is not a scanner`);
+		}
+
+		return new Promise(async (resolve, reject) => {
+			const timeout = setTimeout(() => {
+				this.removeCallback(deviceId, oneTimeCallback);
+				reject(new Error(`Scan reading timeout after ${timeoutMs}ms`));
+			}, timeoutMs);
+
+			const oneTimeCallback = (data: string) => {
+				clearTimeout(timeout);
+				this.removeCallback(deviceId, oneTimeCallback);
+				resolve(data);
+			};
+
+			try {
+				await this.scanFromDevice(deviceId, oneTimeCallback);
+			} catch (error) {
+				clearTimeout(timeout);
+				reject(error);
+			}
+		});
+	}
+
 	// Setup a global scan data callback (for any scanner)
 	onScanData(callback: ScanDataCallback): void {
 		this.globalScanCallbacks.push(callback);

@@ -129,6 +129,47 @@ export class PrinterManager {
 		return this.deviceManager.getDefaultDevice('printer');
 	}
 
+	async testPrint(): Promise<{ success: boolean; error?: string }> {
+		try {
+			// Find default printer device
+			const printerDevice = this.deviceManager.getDefaultDevice('printer');
+
+			if (!printerDevice) {
+				throw new Error('No default scanner found');
+			}
+
+			console.log(`Starting test print on device: ${printerDevice.id}`);
+
+			// Create test receipt content
+			const testContent = `
+================================
+         TEST PRINT
+================================
+Date: ${new Date().toLocaleString()}
+Device: ${printerDevice.meta?.brand || 'Unknown'} ${printerDevice.meta?.model || ''}
+Status: Print test successful
+
+This is a test print to verify
+that your printer is working
+correctly.
+
+Thank you!
+================================
+
+
+`;
+
+			// Use existing printToDevice method
+			await this.printToDevice(printerDevice.id, testContent, false);
+
+			console.log(`Test print completed successfully on device: ${printerDevice.id}`);
+			return { success: true };
+		} catch (error) {
+			console.error(`Error in testPrint: ${error}`);
+			return { success: false, error: `Test print failed: ${error}` };
+		}
+	}
+
 	private setupEventListeners(): void {
 		// Auto-create printer adapters for devices with printer type and default flag
 		this.deviceManager.onDeviceConnect(async (device) => {
