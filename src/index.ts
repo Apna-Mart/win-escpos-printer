@@ -22,7 +22,7 @@ deviceManager.setDeviceConfig('0x483', '0x5743', {deviceType: 'printer', setToDe
 
 scannerManager.onScanData((d)=>{
 	console.log(`Scan data ${JSON.stringify(d)}`);
-	printerManager.printToDefault('Scan data: ' + JSON.stringify(d) + '')
+	printerManager.printToDefault('Scan data: ' + JSON.stringify(d) + '').then()
 })
 
 scaleManager.onWeightData((data)=>{

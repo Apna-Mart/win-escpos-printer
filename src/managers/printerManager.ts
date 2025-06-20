@@ -1,5 +1,5 @@
 import type { WritableDevice } from '../adaptor/deviceAdaptor';
-import { ThermalPrinterAdapter } from '../adaptor/thermalPrinterAdaptor';
+import { createPrinterAdapter } from '../adaptor/printerAdapterFactory';
 import { saveDeviceConfig, updateDeviceConfig } from '../core/deviceConfig';
 import type { TerminalDevice } from '../core/types';
 import type { DeviceManager } from './deviceManager';
@@ -80,7 +80,7 @@ export class PrinterManager {
 		}
 
 		try {
-			const adapter = new ThermalPrinterAdapter(device);
+			const adapter = createPrinterAdapter(device);
 
 			adapter.onError((error) => {
 				console.error(`Printer adapter error for ${device.id}:`, error);
