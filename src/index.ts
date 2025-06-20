@@ -1,32 +1,43 @@
+// Core managers
 import { DeviceManager } from './managers/deviceManager';
 import { PrinterManager } from './managers/printerManager';
 import { ScaleManager } from './managers/scaleManager';
 import { ScannerManager } from './managers/scannerManager';
 
-const deviceManager = new DeviceManager();
-const printerManager = new PrinterManager(deviceManager);
-const scannerManager = new ScannerManager(deviceManager);
-const scaleManager = new ScaleManager(deviceManager);
+// Adaptors
+export { DeviceManager } from './managers/deviceManager';
+export { PrinterManager } from './managers/printerManager';
+export { ScaleManager } from './managers/scaleManager';
+export { ScannerManager } from './managers/scannerManager';
+export { DeviceAdapter, WritableDevice, ReadableDevice } from './adaptor/deviceAdaptor';
+export { BarcodeScannerAdapter } from './adaptor/barcodeScannerAdaptor';
+export { WeightScaleAdapter } from './adaptor/weightScaleAdaptor';
+export { WindowsPrinterAdapter } from './adaptor/windowsPrinterAdapter';
+export { UnixPrinterAdapter } from './adaptor/unixPrinterAdapter';
 
-deviceManager.onDeviceConnect((d)=>{
-	console.log(`Device connected ${JSON.stringify(d)}`);
-})
+// Core utilities
+export * from './core/deviceConfig';
+export { devicesWithSavedConfig, getConnectedDevices } from './core/deviceDetector';
+export { DeviceEventEmitter } from './core/deviceEvents';
+export { PersistentStorage } from './core/persistentStorage';
 
-deviceManager.onDeviceDisconnect((d)=>{
-	console.log(`Device diconnected ${JSON.stringify(d)}`);
-})
+// Types
+export * from './core/types';
 
-// deviceManager.setDeviceConfig('0x26f1', '0x5650', {deviceType: 'scanner', setToDefault: true, baudrate: 9600, model: 'Table Top PD-310', brand: 'balajiPOS'}).then()
-// deviceManager.setDeviceConfig('0x67b', '0x23a3', {deviceType: 'scale', setToDefault: true, baudrate: 9600, model: 'DS-252', brand: 'Essae'}).then()
-// deviceManager.setDeviceConfig('0x483', '0x5743', {deviceType: 'printer', setToDefault: true, baudrate: "not-supported", model: 'RP-803', brand: 'balajiPOS'}).then()
+// Services
+export { DeviceConfigService } from './services/deviceConfigService';
 
-scannerManager.onScanData((d)=>{
-	console.log(`Scan data ${JSON.stringify(d)}`);
-	printerManager.printToDefault('Scan data: ' + JSON.stringify(d) + '').then()
-})
+// Factory function for easy initialization
+export function createDeviceManagers() {
+	const deviceManager = new DeviceManager();
+	const printerManager = new PrinterManager(deviceManager);
+	const scannerManager = new ScannerManager(deviceManager);
+	const scaleManager = new ScaleManager(deviceManager);
 
-scaleManager.onWeightData((data)=>{
-	console.log(`Weight data ${JSON.stringify(data)}`);
-})
-
-deviceManager.start().then();
+	return {
+		deviceManager,
+		printerManager,
+		scannerManager,
+		scaleManager
+	};
+}

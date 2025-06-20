@@ -1,10 +1,23 @@
 {
   "name": "escpos-lib",
   "version": "1.0.0",
-  "description": "",
+  "description": "ESC/POS thermal printer library with native Windows support and cross-platform compatibility",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "gypfile": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "binding.gyp",
+    "src/native/**/*",
+    "README.md"
+  ],
   "scripts": {
     "start": "tsx watch src/index.ts",
     "build": "node-gyp rebuild && tsc",
@@ -24,7 +37,26 @@
     "tsx": "^4.20.3",
     "typescript": "^5.5.3"
   },
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "escpos",
+    "thermal-printer",
+    "printer",
+    "barcode-scanner",
+    "weight-scale",
+    "pos",
+    "receipt-printer",
+    "windows",
+    "cross-platform"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-repo/escpos-lib.git"
+  },
   "dependencies": {
     "@node-escpos/core": "^0.6.0",
     "@node-escpos/serialport-adapter": "^1.0.0",
