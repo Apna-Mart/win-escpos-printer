@@ -269,7 +269,9 @@ export class DeviceManager {
 					const hasChanges =
 						existingDevice.meta.deviceType !== device.meta.deviceType ||
 						existingDevice.meta.setToDefault !== device.meta.setToDefault ||
-						existingDevice.meta.baudrate !== device.meta.baudrate;
+						existingDevice.meta.baudrate !== device.meta.baudrate ||
+						existingDevice.meta.brand !== device.meta.brand ||
+						existingDevice.meta.model !== device.meta.model;
 
 					if (hasChanges) {
 						this.devices.set(device.id, device);
