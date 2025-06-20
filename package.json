@@ -19,7 +19,7 @@
     "README.md"
   ],
   "scripts": {
-    "start": "tsx watch src/index.ts",
+    "example": "tsx watch example.ts",
     "build": "node-gyp rebuild && tsc",
     "check": "biome check --write src",
     "clean": "node-gyp clean",

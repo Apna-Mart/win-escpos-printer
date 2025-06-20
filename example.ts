@@ -15,7 +15,9 @@ deviceManager.onDeviceDisconnect((d) => {
 
 scannerManager.onScanData((d) => {
 	console.log(`Scan data ${JSON.stringify(d)}`);
-	printerManager.printToDefault('Scan data: ' + JSON.stringify(d) + '').then()
+	printerManager.printToDefault('Scan data: ' + JSON.stringify(d) + '').catch(()=>{
+		console.log('Error printing');
+	})
 })
 
 scaleManager.onWeightData((data) => {
