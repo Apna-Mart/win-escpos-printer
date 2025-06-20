@@ -24,6 +24,7 @@
     "check": "biome check --write src",
     "clean": "node-gyp clean",
     "install": "node-gyp rebuild",
+    "prepare": "npm run clean && npm run build",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
