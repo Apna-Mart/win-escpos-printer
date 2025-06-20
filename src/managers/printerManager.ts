@@ -87,7 +87,7 @@ export class PrinterManager {
 				this.deviceManager
 					.getEventEmitter()
 					.emitDeviceError(device.id, new Error(String(error)));
-				this.closePrinterAdapter(device.id);
+				// Don't close here - let device disconnect event handle cleanup
 			});
 
 			await adapter.open();

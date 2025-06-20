@@ -73,13 +73,9 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 				this.dataHandler = undefined;
 			}
 
-			this.device.close((err) => {
+			this.device.close(() => {
 				this.isOpen = false;
-				if (err) {
-					reject(err);
-				} else {
-					resolve();
-				}
+				resolve();
 			});
 		});
 	}

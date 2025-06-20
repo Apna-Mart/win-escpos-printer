@@ -328,9 +328,6 @@ export class ScannerManager {
 		this.deviceManager.onDeviceDisconnect(async (deviceId) => {
 			this.activeScanners.delete(deviceId);
 			await this.closeScannerAdapter(deviceId);
-			console.log(
-				`Scanner ${deviceId} disconnected, callbacks preserved for reconnection`,
-			);
 		});
 	}
 }

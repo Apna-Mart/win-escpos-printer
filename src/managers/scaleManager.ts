@@ -370,9 +370,6 @@ export class ScaleManager {
 		this.deviceManager.onDeviceDisconnect(async (deviceId) => {
 			this.activeScales.delete(deviceId);
 			await this.closeScaleAdapter(deviceId);
-			console.log(
-				`Scale ${deviceId} disconnected, callbacks preserved for reconnection`,
-			);
 		});
 	}
 }
