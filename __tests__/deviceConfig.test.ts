@@ -7,9 +7,9 @@ import {
 	clearAllDevices,
 	hasDeviceConfig,
 	getDeviceCount,
-} from '../src/deviceConfig';
-import { type DeviceConfig } from '../src/types';
-import * as storage from 'node-global-storage';
+} from '../src/core/deviceConfig';
+import { type DeviceConfig } from '../src/core/types';
+import * as storage from '../src/core/persistentStorage';
 
 const mockValidConfig: DeviceConfig = {
 	deviceType: 'printer',
@@ -28,6 +28,15 @@ const mockValidConfig2: DeviceConfig = {
 };
 
 describe('deviceConfig', () => {
+	beforeEach(() => {
+		// Clear storage before each test
+		storage.clear();
+	});
+
+	afterAll(() => {
+		// Clean up after all tests
+		storage.clear();
+	});
 	describe('saveDeviceConfig', () => {
 		it('should save device config successfully', () => {
 			saveDeviceConfig('1234', '5678', mockValidConfig);

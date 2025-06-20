@@ -1,4 +1,4 @@
-import * as storage from 'node-global-storage';
+import * as storage from './persistentStorage';
 import type { DeviceConfig } from './types';
 
 const createDeviceKey = (vid: string, pid: string): string => {
