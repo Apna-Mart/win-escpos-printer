@@ -243,8 +243,8 @@ export class ThermalWindowPrinter {
 			);
 			console.error('ThermalWindowPrinter: Error:', {
 				message: error instanceof Error ? error.message : String(error),
-				code: (error as any)?.code,
-				path: (error as any)?.path,
+				code: (error as NodeJS.ErrnoException)?.code,
+				path: (error as NodeJS.ErrnoException)?.path,
 			});
 
 			if (

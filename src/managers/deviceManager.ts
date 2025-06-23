@@ -20,8 +20,6 @@ export class DeviceManager {
 	private usbListenersSetup = false;
 	private configService = new DeviceConfigService();
 
-	constructor() {}
-
 	/**
 	 * Get the device configuration service
 	 * @returns DeviceConfigService instance
@@ -127,7 +125,8 @@ export class DeviceManager {
 					this.events.emitDeviceConnect(device);
 				} else {
 					// Update existing device metadata
-					const existingDevice = this.devices.get(device.id)!;
+					const existingDevice = this.devices.get(device.id);
+					if (!existingDevice) continue;
 					const hasChanges =
 						existingDevice.meta.deviceType !== device.meta.deviceType ||
 						existingDevice.meta.setToDefault !== device.meta.setToDefault ||
@@ -194,7 +193,8 @@ export class DeviceManager {
 					console.log(`Added device via targeted refresh: ${device.id}`);
 				} else {
 					// Update existing device metadata
-					const existingDevice = this.devices.get(device.id)!;
+					const existingDevice = this.devices.get(device.id);
+					if (!existingDevice) continue;
 					const hasChanges =
 						existingDevice.meta.deviceType !== device.meta.deviceType ||
 						existingDevice.meta.setToDefault !== device.meta.setToDefault ||
@@ -265,7 +265,8 @@ export class DeviceManager {
 			// Update only the target devices
 			for (const device of targetDevices) {
 				if (this.devices.has(device.id)) {
-					const existingDevice = this.devices.get(device.id)!;
+					const existingDevice = this.devices.get(device.id);
+					if (!existingDevice) continue;
 					const hasChanges =
 						existingDevice.meta.deviceType !== device.meta.deviceType ||
 						existingDevice.meta.setToDefault !== device.meta.setToDefault ||

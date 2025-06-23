@@ -66,7 +66,7 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 			return Promise.resolve();
 		}
 
-		return new Promise<void>((resolve, reject) => {
+		return new Promise<void>((resolve, _reject) => {
 			// Remove data handler to prevent memory leaks
 			if (this.dataHandler) {
 				this.device.removeAllListeners('data');

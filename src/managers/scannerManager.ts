@@ -59,7 +59,7 @@ export class ScannerManager {
 	}
 
 	private storeCallbackForWhenDefaultConnects(
-		deviceType: 'scanner',
+		_deviceType: 'scanner',
 		callback: ScanDataCallback,
 	): void {
 		this.pendingDefaultCallbacks.push(callback);
@@ -264,7 +264,7 @@ export class ScannerManager {
 			throw new Error(`Device ${deviceId} is not a scanner`);
 		}
 
-		return new Promise(async (resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				this.removeCallback(deviceId, oneTimeCallback);
 				reject(new Error(`Scan reading timeout after ${timeoutMs}ms`));
@@ -276,12 +276,10 @@ export class ScannerManager {
 				resolve(data);
 			};
 
-			try {
-				await this.scanFromDevice(deviceId, oneTimeCallback);
-			} catch (error) {
+			this.scanFromDevice(deviceId, oneTimeCallback).catch((error) => {
 				clearTimeout(timeout);
 				reject(error);
-			}
+			});
 		});
 	}
 
@@ -347,7 +345,8 @@ export class ScannerManager {
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
 						this.persistentCallbacks.has(device.id) &&
-						this.persistentCallbacks.get(device.id)!.length > 0;
+						// @ts-ignore
+						this.persistentCallbacks.get(device.id)?.length > 0;
 
 					// Check if this is the default scanner and has pending default callbacks
 					const isDefaultWithPendingCallbacks =
@@ -365,11 +364,11 @@ export class ScannerManager {
 							this.persistentCallbacks.set(device.id, []);
 						}
 						this.persistentCallbacks
-							.get(device.id)!
-							.push(...this.pendingDefaultCallbacks);
+							.get(device.id)
+							?.push(...this.pendingDefaultCallbacks);
 						this.pendingDefaultCallbacks = []; // Clear pending callbacks
 						console.log(
-							`Moved ${this.persistentCallbacks.get(device.id)!.length} pending callbacks to default scanner: ${device.id}`,
+							`Moved ${this.persistentCallbacks.get(device.id)?.length} pending callbacks to default scanner: ${device.id}`,
 						);
 					}
 

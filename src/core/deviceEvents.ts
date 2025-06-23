@@ -25,7 +25,7 @@ export class DeviceEventEmitter {
 		if (!this.dataCallbacks.has(deviceId)) {
 			this.dataCallbacks.set(deviceId, []);
 		}
-		this.dataCallbacks.get(deviceId)!.push(callback);
+		this.dataCallbacks.get(deviceId)?.push(callback);
 	}
 
 	onDeviceError(callback: DeviceErrorCallback): void {

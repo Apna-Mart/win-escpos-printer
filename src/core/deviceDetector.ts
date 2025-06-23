@@ -1,7 +1,7 @@
 import Serial from '@node-escpos/serialport-adapter';
 import USB from '@node-escpos/usb-adapter';
 import { type Device, usb } from 'usb';
-import { getDeviceConfig, saveDeviceConfig } from './deviceConfig';
+import { getDeviceConfig } from './deviceConfig';
 import type { TerminalDevice } from './types';
 import { type PrinterInfo, ThermalWindowPrinter } from './windows_printer';
 
@@ -43,7 +43,7 @@ function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 	const availablePrinters = ThermalWindowPrinter.getAvailablePrinters();
 	console.log('Available printers on windows:', availablePrinters);
 	const pattern = /^USB\d+$/;
-	const windowsPrinter = connectedDevices.flatMap((device) =>
+	const windowsPrinter = connectedDevices.flatMap((_device) =>
 		availablePrinters.filter((printer) => pattern.test(printer.portName)),
 	)[0];
 
@@ -58,8 +58,7 @@ function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 	connectedPrintersOnWindows.push(windowsPrinter);
 
 	for (const printer of connectedPrintersOnWindows) {
-		const id =
-			'device_' + toHexString(printer.vid) + '_' + toHexString(printer.pid);
+		const id = `device_${toHexString(printer.vid)}_${toHexString(printer.pid)}`;
 		const terminalDevice: TerminalDevice = {
 			capabilities: ['write'],
 			id: id,

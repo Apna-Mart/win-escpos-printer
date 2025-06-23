@@ -48,11 +48,11 @@ export class WindowsPrinterAdapter implements WritableDevice {
 
 			printer.close();
 		} catch (e) {
-			throw new Error('Printer error: ' + (e as Error).message);
+			throw new Error(`Printer error: ${(e as Error).message}`);
 		}
 	}
 
-	onError(callback: (error: Error | string) => void): void {
+	onError(_callback: (error: Error | string) => void): void {
 		// Windows printer doesn't have persistent error events since connections are per-operation
 	}
 }
