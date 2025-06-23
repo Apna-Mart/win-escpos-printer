@@ -14,7 +14,6 @@ export { BarcodeScannerAdapter } from './adaptor/barcodeScannerAdaptor';
 export { WeightScaleAdapter } from './adaptor/weightScaleAdaptor';
 export { WindowsPrinterAdapter } from './adaptor/windowsPrinterAdapter';
 export { UnixPrinterAdapter } from './adaptor/unixPrinterAdapter';
-export { ThermalWindowPrinter } from './core/windows_printer';
 
 // Core utilities
 export * from './core/deviceConfig';
