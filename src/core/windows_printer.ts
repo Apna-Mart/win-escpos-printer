@@ -218,13 +218,28 @@ export class ThermalWindowPrinter {
 	private static nativePrinterClass: NativePrinterConstructor | null = null;
 
 	static {
+		console.log('ThermalWindowPrinter: Initializing native printer module...');
+		console.log(`ThermalWindowPrinter: Platform: ${process.platform}, Architecture: ${process.arch}`);
+
 		try {
-			ThermalWindowPrinter.nativePrinterClass =
-				require('bindings')('escpos-lib').Printer;
-		} catch (_error) {
-			console.warn(
-				'Warning: Failed to load native printer module. Native functionality will not be available.',
-			);
+			console.log('ThermalWindowPrinter: Attempting to load native module "escpos-lib"...');
+			const nativeModule = require('bindings')('escpos-lib');
+			console.log('ThermalWindowPrinter: Native module loaded, available exports:', Object.keys(nativeModule));
+
+			ThermalWindowPrinter.nativePrinterClass = nativeModule.Printer;
+			console.log('ThermalWindowPrinter: Native printer class initialized successfully');
+		} catch (error) {
+			console.error('ThermalWindowPrinter: Failed to load native printer module');
+			console.error('ThermalWindowPrinter: Error:', {
+				message: error instanceof Error ? error.message : String(error),
+				code: (error as any)?.code,
+				path: (error as any)?.path
+			});
+
+			if (error instanceof Error && error.message.includes('MODULE_NOT_FOUND')) {
+				console.error('ThermalWindowPrinter: Native module not found - may need to rebuild with "npm run build"');
+			}
+
 			ThermalWindowPrinter.nativePrinterClass = null;
 		}
 	}
