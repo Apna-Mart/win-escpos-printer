@@ -3,7 +3,7 @@ import USB from '@node-escpos/usb-adapter';
 import { type Device, usb } from 'usb';
 import { getDeviceConfig, saveDeviceConfig } from './deviceConfig';
 import type { TerminalDevice } from './types';
-import { PrinterInfo, ThermalWindowPrinter } from './windows_printer';
+import { type PrinterInfo, ThermalWindowPrinter } from './windows_printer';
 
 // Helper function to format ID as hexadecimal string
 const toHexString = (value: number | string): string => {
@@ -29,29 +29,30 @@ function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 		printingDevices.filter(
 			(printer) =>
 				printer.deviceDescriptor.idProduct ===
-				device.deviceDescriptor.idProduct &&
+					device.deviceDescriptor.idProduct &&
 				printer.deviceDescriptor.idVendor === device.deviceDescriptor.idVendor,
 		),
 	);
 
-	if(printersWithVidPid.length === 0) {
+	if (printersWithVidPid.length === 0) {
 		return [];
 	}
 
-	const connectedPrintersOnWindows : PrinterInfo[] = [];
+	const connectedPrintersOnWindows: PrinterInfo[] = [];
 	const devices: TerminalDevice[] = [];
 	const availablePrinters = ThermalWindowPrinter.getAvailablePrinters();
 	console.log('Available printers on windows:', availablePrinters);
 	const pattern = /^USB\d+$/;
 	const windowsPrinter = connectedDevices.flatMap((device) =>
-		availablePrinters.filter(
-			(printer) =>
-				pattern.test(printer.portName)
-		),
+		availablePrinters.filter((printer) => pattern.test(printer.portName)),
 	)[0];
 
-	windowsPrinter.vid = toHexString(printersWithVidPid[0].deviceDescriptor.idVendor);
-	windowsPrinter.pid = toHexString(printersWithVidPid[0].deviceDescriptor.idProduct);
+	windowsPrinter.vid = toHexString(
+		printersWithVidPid[0].deviceDescriptor.idVendor,
+	);
+	windowsPrinter.pid = toHexString(
+		printersWithVidPid[0].deviceDescriptor.idProduct,
+	);
 
 	// TODO: Bruteforce logic added to add vid pid manually
 	connectedPrintersOnWindows.push(windowsPrinter);

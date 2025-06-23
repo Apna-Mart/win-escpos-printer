@@ -336,14 +336,23 @@ export class DeviceManager {
 	async deleteDeviceConfig(vid: string, pid: string): Promise<boolean> {
 		const result = await this.configService.deleteDeviceConfig(vid, pid);
 		if (result) {
+			// Emit config deletion event before refreshing
+			this.events.emitDeviceConfigDeleted(vid, pid);
 			await this.refreshDeviceConfig(vid, pid);
 		}
 		return result;
 	}
 
 	async deleteAllDeviceConfigs(): Promise<boolean> {
+		// Get all configs before deletion to emit events
+		const allConfigs = this.configService.getAllDeviceConfigs();
 		const result = await this.configService.deleteAllDeviceConfigs();
 		if (result) {
+			// Emit config deletion events for all deleted configs
+			for (const [key] of Object.entries(allConfigs)) {
+				const [vid, pid] = key.split(':');
+				this.events.emitDeviceConfigDeleted(vid, pid);
+			}
 			await this.refreshDevices(); // Full refresh for delete all
 		}
 		return result;

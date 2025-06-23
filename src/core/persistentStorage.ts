@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
 
 export class PersistentStorage {
 	private storagePath: string;
@@ -82,9 +82,12 @@ export class PersistentStorage {
 const storage = new PersistentStorage();
 
 // Export interface compatible with node-global-storage
-export const setValue = <T>(key: string, value: T): void => storage.setValue(key, value);
-export const getValue = <T>(key: string): T | undefined => storage.getValue<T>(key);
-export const getAllValues = (): Record<string, unknown> => storage.getAllValues();
+export const setValue = <T>(key: string, value: T): void =>
+	storage.setValue(key, value);
+export const getValue = <T>(key: string): T | undefined =>
+	storage.getValue<T>(key);
+export const getAllValues = (): Record<string, unknown> =>
+	storage.getAllValues();
 export const unsetValue = (key: string): void => storage.unsetValue(key);
 export const clear = (): void => storage.clear();
 export const getStoragePath = (): string => storage.getStoragePath();

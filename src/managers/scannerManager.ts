@@ -303,7 +303,43 @@ export class ScannerManager {
 		});
 	}
 
+	/**
+	 * Clean up adapter and callbacks for a device whose config was deleted
+	 * This preserves default device functionality while cleaning up deleted devices
+	 */
+	private async cleanupDeletedDevice(vid: string, pid: string): Promise<void> {
+		// Find devices with matching VID/PID
+		const devicesToCleanup = this.deviceManager
+			.getDevices()
+			.filter((device) => device.vid === vid && device.pid === pid);
+
+		for (const device of devicesToCleanup) {
+			console.log(
+				`Cleaning up deleted device config for scanner: ${device.id}`,
+			);
+
+			// Close adapter
+			await this.closeScannerAdapter(device.id);
+
+			// Remove from active scanners
+			this.activeScanners.delete(device.id);
+
+			// Clear device-specific persistent callbacks
+			this.persistentCallbacks.delete(device.id);
+
+			// Note: We don't touch global callbacks or pending default callbacks
+			// as those should continue working with other devices
+		}
+	}
+
 	private setupEventListeners(): void {
+		// Handle device config deletion
+		this.deviceManager
+			.getEventEmitter()
+			.onDeviceConfigDeleted(async (vid, pid) => {
+				await this.cleanupDeletedDevice(vid, pid);
+			});
+
 		// Handle device connections
 		this.deviceManager.onDeviceConnect(async (device) => {
 			if (device.meta.deviceType === 'scanner') {

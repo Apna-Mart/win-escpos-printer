@@ -4,25 +4,30 @@ import { PrinterManager } from './managers/printerManager';
 import { ScaleManager } from './managers/scaleManager';
 import { ScannerManager } from './managers/scannerManager';
 
+export { BarcodeScannerAdapter } from './adaptor/barcodeScannerAdaptor';
+export {
+	DeviceAdapter,
+	ReadableDevice,
+	WritableDevice,
+} from './adaptor/deviceAdaptor';
+export { UnixPrinterAdapter } from './adaptor/unixPrinterAdapter';
+export { WeightScaleAdapter } from './adaptor/weightScaleAdaptor';
+export { WindowsPrinterAdapter } from './adaptor/windowsPrinterAdapter';
+// Core utilities
+export * from './core/deviceConfig';
+export {
+	devicesWithSavedConfig,
+	getConnectedDevices,
+} from './core/deviceDetector';
+export { DeviceEventEmitter } from './core/deviceEvents';
+export { PersistentStorage } from './core/persistentStorage';
+// Types
+export * from './core/types';
 // Adaptors
 export { DeviceManager } from './managers/deviceManager';
 export { PrinterManager } from './managers/printerManager';
 export { ScaleManager } from './managers/scaleManager';
 export { ScannerManager } from './managers/scannerManager';
-export { DeviceAdapter, WritableDevice, ReadableDevice } from './adaptor/deviceAdaptor';
-export { BarcodeScannerAdapter } from './adaptor/barcodeScannerAdaptor';
-export { WeightScaleAdapter } from './adaptor/weightScaleAdaptor';
-export { WindowsPrinterAdapter } from './adaptor/windowsPrinterAdapter';
-export { UnixPrinterAdapter } from './adaptor/unixPrinterAdapter';
-
-// Core utilities
-export * from './core/deviceConfig';
-export { devicesWithSavedConfig, getConnectedDevices } from './core/deviceDetector';
-export { DeviceEventEmitter } from './core/deviceEvents';
-export { PersistentStorage } from './core/persistentStorage';
-
-// Types
-export * from './core/types';
 
 // Services
 export { DeviceConfigService } from './services/deviceConfigService';
@@ -38,6 +43,6 @@ export function createDeviceManagers() {
 		deviceManager,
 		printerManager,
 		scannerManager,
-		scaleManager
+		scaleManager,
 	};
 }

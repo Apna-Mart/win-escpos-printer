@@ -26,7 +26,7 @@ export class WindowsPrinterAdapter implements WritableDevice {
 	async write(data: string, isImage: boolean): Promise<void> {
 		try {
 			const printer = new ThermalWindowPrinter(this.terminalDevice.name);
-			
+
 			if (!isImage) {
 				printer.printText(data);
 				printer.print(EscPosCommands.ALIGN_CENTER);
@@ -45,7 +45,7 @@ export class WindowsPrinterAdapter implements WritableDevice {
 				printer.print(EscPosCommands.ALIGN_CENTER);
 				printer.print(EscPosCommands.CUT);
 			}
-			
+
 			printer.close();
 		} catch (e) {
 			throw new Error('Printer error: ' + (e as Error).message);

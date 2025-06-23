@@ -4,12 +4,14 @@ export type DeviceConnectCallback = (device: TerminalDevice) => void;
 export type DeviceDisconnectCallback = (deviceId: string) => void;
 export type DeviceDataCallback = (deviceId: string, data: string) => void;
 export type DeviceErrorCallback = (deviceId: string, error: Error) => void;
+export type DeviceConfigDeletedCallback = (vid: string, pid: string) => void;
 
 export class DeviceEventEmitter {
 	private connectCallbacks: DeviceConnectCallback[] = [];
 	private disconnectCallbacks: DeviceDisconnectCallback[] = [];
 	private dataCallbacks = new Map<string, DeviceDataCallback[]>();
 	private errorCallbacks: DeviceErrorCallback[] = [];
+	private configDeletedCallbacks: DeviceConfigDeletedCallback[] = [];
 
 	onDeviceConnect(callback: DeviceConnectCallback): void {
 		this.connectCallbacks.push(callback);
@@ -28,6 +30,10 @@ export class DeviceEventEmitter {
 
 	onDeviceError(callback: DeviceErrorCallback): void {
 		this.errorCallbacks.push(callback);
+	}
+
+	onDeviceConfigDeleted(callback: DeviceConfigDeletedCallback): void {
+		this.configDeletedCallbacks.push(callback);
 	}
 
 	removeDeviceDataCallbacks(deviceId: string): void {
@@ -77,10 +83,21 @@ export class DeviceEventEmitter {
 		});
 	}
 
+	emitDeviceConfigDeleted(vid: string, pid: string): void {
+		this.configDeletedCallbacks.forEach((callback) => {
+			try {
+				callback(vid, pid);
+			} catch (error) {
+				console.error('Error in device config deleted callback:', error);
+			}
+		});
+	}
+
 	clear(): void {
 		this.connectCallbacks = [];
 		this.disconnectCallbacks = [];
 		this.dataCallbacks.clear();
 		this.errorCallbacks = [];
+		this.configDeletedCallbacks = [];
 	}
 }
