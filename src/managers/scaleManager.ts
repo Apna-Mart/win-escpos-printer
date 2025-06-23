@@ -192,8 +192,7 @@ export class ScaleManager {
 				this.deviceManager.getEventEmitter().emitDeviceData(device.id, dataStr);
 			});
 
-			await new Promise(resolve => setTimeout(resolve, 1000));
-		await adapter.open();
+			await adapter.open();
 			this.scaleAdapters.set(device.id, adapter);
 			console.log(`Scale adapter created for ${device.id}`);
 		} catch (error) {
