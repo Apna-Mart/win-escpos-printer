@@ -25,14 +25,18 @@ function getFilteredUsbDevices(): Device[] {
 function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 	const printingDevices = USB.findPrinter();
 
-	const printerWithVidPid = connectedDevices.flatMap((device) =>
+	const printersWithVidPid = connectedDevices.flatMap((device) =>
 		printingDevices.filter(
 			(printer) =>
 				printer.deviceDescriptor.idProduct ===
 				device.deviceDescriptor.idProduct &&
 				printer.deviceDescriptor.idVendor === device.deviceDescriptor.idVendor,
 		),
-	)[0];
+	);
+
+	if(printersWithVidPid.length === 0) {
+		return [];
+	}
 
 	const connectedPrintersOnWindows : PrinterInfo[] = [];
 	const devices: TerminalDevice[] = [];
@@ -46,8 +50,8 @@ function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 		),
 	)[0];
 
-	windowsPrinter.vid = toHexString(printerWithVidPid.deviceDescriptor.idVendor);
-	windowsPrinter.pid = toHexString(printerWithVidPid.deviceDescriptor.idProduct);
+	windowsPrinter.vid = toHexString(printersWithVidPid[0].deviceDescriptor.idVendor);
+	windowsPrinter.pid = toHexString(printersWithVidPid[0].deviceDescriptor.idProduct);
 
 	// TODO: Bruteforce logic added to add vid pid manually
 	connectedPrintersOnWindows.push(windowsPrinter);
