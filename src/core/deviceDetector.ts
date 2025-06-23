@@ -49,6 +49,7 @@ function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 	windowsPrinter.vid = toHexString(printerWithVidPid.deviceDescriptor.idVendor);
 	windowsPrinter.pid = toHexString(printerWithVidPid.deviceDescriptor.idProduct);
 
+	// TODO: Bruteforce logic added to add vid pid manually
 	connectedPrintersOnWindows.push(windowsPrinter);
 
 	for (const printer of connectedPrintersOnWindows) {
