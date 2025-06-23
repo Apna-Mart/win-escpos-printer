@@ -25,7 +25,7 @@ function getFilteredUsbDevices(): Device[] {
 function getWindowsPrinters(connectedDevices: Device[]): TerminalDevice[] {
 	const devices: TerminalDevice[] = [];
 	const availablePrinters = ThermalWindowPrinter.getAvailablePrinters();
-
+	console.log('Available printers on windows:', availablePrinters);
 	const pattern = /^USB\d+$/;
 	const connectedPrintersOnWindows = connectedDevices.flatMap((device) =>
 		availablePrinters.filter(
