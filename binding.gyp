@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "win_printer",
+      "target_name": "escpos-lib",
       "conditions": [
         ["OS=='win'", {
           "sources": [ "src/native/printer.cpp" ],

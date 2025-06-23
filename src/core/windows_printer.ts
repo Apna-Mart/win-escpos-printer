@@ -220,7 +220,7 @@ export class ThermalWindowPrinter {
 	static {
 		try {
 			ThermalWindowPrinter.nativePrinterClass =
-				require('bindings')('win_printer').Printer;
+				require('bindings')('escpos-lib').Printer;
 		} catch (_error) {
 			console.warn(
 				'Warning: Failed to load native printer module. Native functionality will not be available.',
