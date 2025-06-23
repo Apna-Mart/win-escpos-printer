@@ -192,7 +192,8 @@ export class ScannerManager {
 				this.deviceManager.getEventEmitter().emitDeviceData(device.id, dataStr);
 			});
 
-			await adapter.open();
+			await new Promise(resolve => setTimeout(resolve, 1000));
+		await adapter.open();
 			this.scannerAdapters.set(device.id, adapter);
 			console.log(`Scanner adapter created for ${device.id}`);
 		} catch (error) {
