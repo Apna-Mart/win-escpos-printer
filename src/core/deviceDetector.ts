@@ -179,7 +179,9 @@ export function devicesWithSavedConfig(devices: TerminalDevice[]) {
 		} else {
 			// Reset to default metadata when no config exists (after deletion)
 			device.meta = {
-				deviceType: device.capabilities.includes('write') ? 'printer' : 'unassigned',
+				deviceType: device.capabilities.includes('write')
+					? 'printer'
+					: 'unassigned',
 				baudrate: device.capabilities.includes('read') ? 9600 : 'not-supported',
 				setToDefault: false,
 				brand: '',

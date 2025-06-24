@@ -321,14 +321,15 @@ export class ScannerManager {
 
 				// Auto-stop scanning if THIS SPECIFIC DEVICE lost default status (regardless of current deviceType)
 				if (wasDefault && !isDefault) {
-					console.log(`Auto-stopping scanning from device that lost default status: ${device.id}`);
+					console.log(
+						`Auto-stopping scanning from device that lost default status: ${device.id}`,
+					);
 					await this.stopScanning(device.id);
 					return; // Exit early, no need to check start conditions
 				}
 
 				// Only process auto-start logic for scanner devices
 				if (device.meta.deviceType === 'scanner') {
-
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
 						this.persistentCallbacks.has(device.id) &&
@@ -342,10 +343,7 @@ export class ScannerManager {
 					const hasGlobalCallbacks = this.globalScanCallbacks.length > 0;
 
 					// If this device becomes the default scanner, move pending callbacks to device-specific storage
-					if (
-						isDefault &&
-						this.pendingDefaultCallbacks.length > 0
-					) {
+					if (isDefault && this.pendingDefaultCallbacks.length > 0) {
 						if (!this.persistentCallbacks.has(device.id)) {
 							this.persistentCallbacks.set(device.id, []);
 						}
@@ -383,10 +381,7 @@ export class ScannerManager {
 					}
 				}
 			} catch (error) {
-				console.error(
-					`Failed to process device ${device.id}:`,
-					error,
-				);
+				console.error(`Failed to process device ${device.id}:`, error);
 			}
 		});
 

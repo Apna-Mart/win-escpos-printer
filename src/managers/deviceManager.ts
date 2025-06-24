@@ -345,10 +345,12 @@ export class DeviceManager {
 	async deleteAllDeviceConfigs(): Promise<boolean> {
 		// Get current devices before deleting configs
 		const currentDevices = Array.from(this.devices.values());
-		const deviceVidPids = new Set(currentDevices.map(d => `${d.vid}:${d.pid}`));
+		const deviceVidPids = new Set(
+			currentDevices.map((d) => `${d.vid}:${d.pid}`),
+		);
 		for (const vidPidKey of deviceVidPids) {
 			const [vid, pid] = vidPidKey.split(':');
-			await this.configService.deleteDeviceConfig(vid, pid)
+			await this.configService.deleteDeviceConfig(vid, pid);
 			await this.refreshDeviceConfig(vid, pid);
 		}
 		return true;

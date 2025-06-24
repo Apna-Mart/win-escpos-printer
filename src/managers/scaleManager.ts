@@ -318,14 +318,15 @@ export class ScaleManager {
 
 				// Auto-stop reading if THIS SPECIFIC DEVICE lost default status (regardless of current deviceType)
 				if (wasDefault && !isDefault) {
-					console.log(`Auto-stopping reading from device that lost default status: ${device.id}`);
+					console.log(
+						`Auto-stopping reading from device that lost default status: ${device.id}`,
+					);
 					await this.stopReading(device.id);
 					return; // Exit early, no need to check start conditions
 				}
 
 				// Only process auto-start logic for scale devices
 				if (device.meta.deviceType === 'scale') {
-
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
 						this.persistentCallbacks.has(device.id) &&
@@ -339,10 +340,7 @@ export class ScaleManager {
 					const hasGlobalCallbacks = this.globalWeightCallbacks.length > 0;
 
 					// If this device becomes the default scale, move pending callbacks to device-specific storage
-					if (
-						isDefault &&
-						this.pendingDefaultCallbacks.length > 0
-					) {
+					if (isDefault && this.pendingDefaultCallbacks.length > 0) {
 						if (!this.persistentCallbacks.has(device.id)) {
 							this.persistentCallbacks.set(device.id, []);
 						}
@@ -380,10 +378,7 @@ export class ScaleManager {
 					}
 				}
 			} catch (error) {
-				console.error(
-					`Failed to process device ${device.id}:`,
-					error,
-				);
+				console.error(`Failed to process device ${device.id}:`, error);
 			}
 		});
 
