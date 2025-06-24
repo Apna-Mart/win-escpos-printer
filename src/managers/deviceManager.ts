@@ -262,11 +262,44 @@ export class DeviceManager {
 				(d) => d.vid === vid && d.pid === pid,
 			);
 
+			// Handle devices that exist in memory but no longer have configs
+			const existingDeviceIds = Array.from(this.devices.keys()).filter((id) => {
+				const device = this.devices.get(id);
+				return device && device.vid === vid && device.pid === pid;
+			});
+
+			if (targetDevices.length === 0 && existingDeviceIds.length > 0) {
+				// Config was deleted - clean up devices and scanner subscriptions
+				for (const deviceId of existingDeviceIds) {
+					const existingDevice = this.devices.get(deviceId);
+					if (existingDevice && existingDevice.meta.deviceType === 'scanner') {
+						// Clean up scanner subscription for this device before removing it
+						await this.cleanupScannerSubscription(deviceId);
+					}
+					this.devices.delete(deviceId);
+					this.events.emitDeviceDisconnect(deviceId);
+					console.log(`Removed device after config deletion: ${deviceId}`);
+				}
+				return;
+			}
+
 			// Update only the target devices
 			for (const device of targetDevices) {
 				if (this.devices.has(device.id)) {
 					const existingDevice = this.devices.get(device.id);
 					if (!existingDevice) continue;
+					
+					// Check if device became unassigned (config was deleted)
+					const wasConfigured = existingDevice.meta.deviceType !== 'unassigned';
+					const isNowUnassigned = device.meta.deviceType === 'unassigned';
+					
+					if (wasConfigured && isNowUnassigned) {
+						// Device lost its configuration - clean up scanner subscription
+						if (existingDevice.meta.deviceType === 'scanner') {
+							await this.cleanupScannerSubscription(device.id);
+						}
+					}
+
 					const hasChanges =
 						existingDevice.meta.deviceType !== device.meta.deviceType ||
 						existingDevice.meta.setToDefault !== device.meta.setToDefault ||
@@ -283,6 +316,21 @@ export class DeviceManager {
 			}
 		} catch (error) {
 			console.error(`Error refreshing config for ${vid}:${pid}:`, error);
+		}
+	}
+
+	/**
+	 * Clean up scanner subscription for a device (used when config is deleted)
+	 * This method triggers cleanup before the device is actually removed
+	 */
+	private async cleanupScannerSubscription(deviceId: string): Promise<void> {
+		try {
+			// Emit device disconnect to trigger scanner manager cleanup before actual removal
+			// This ensures scanner adapters are properly closed when configs are deleted
+			this.events.emitDeviceDisconnect(deviceId);
+			console.log(`Pre-cleanup scanner subscription for device: ${deviceId}`);
+		} catch (error) {
+			console.error(`Error cleaning up scanner subscription for ${deviceId}:`, error);
 		}
 	}
 
