@@ -34,7 +34,7 @@ export async function withExponentialBackoff<T>(
 	options: Partial<RetryOptions> = {},
 ): Promise<T> {
 	const config = { ...DEFAULT_RETRY_OPTIONS, ...options };
-	let lastError: Error;
+	let lastError: Error | undefined;
 	let delay = config.baseDelayMs;
 
 	for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
@@ -69,6 +69,6 @@ export async function withExponentialBackoff<T>(
 	throw new RetryError(
 		`Operation failed after ${config.maxAttempts} attempts`,
 		config.maxAttempts,
-		lastError || new Error('Unknown error'),
+		lastError ?? new Error('Unknown error'),
 	);
 }

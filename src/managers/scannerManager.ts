@@ -315,7 +315,7 @@ export class ScannerManager {
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
 						this.persistentCallbacks.has(device.id) &&
-						this.persistentCallbacks.get(device.id)?.length > 0;
+						(this.persistentCallbacks.get(device.id)?.length ?? 0) > 0;
 
 					// Check if this is the default scanner and has pending default callbacks
 					const isDefaultWithPendingCallbacks =
