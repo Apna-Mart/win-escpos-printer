@@ -311,21 +311,23 @@ export class ScannerManager {
 	private setupEventListeners(): void {
 		// Handle device connections
 		this.deviceManager.onDeviceConnect(async (device) => {
-			if (device.meta.deviceType === 'scanner') {
-				try {
-					// Check previous default state to detect status changes
-					const wasDefault = this.previousDefaultStates.get(device.id) ?? false;
-					const isDefault = device.meta.setToDefault ?? false;
+			try {
+				// Check previous default state to detect status changes - FOR ANY DEVICE
+				const wasDefault = this.previousDefaultStates.get(device.id) ?? false;
+				const isDefault = device.meta.setToDefault ?? false;
 
-					// Update previous state tracking
-					this.previousDefaultStates.set(device.id, isDefault);
+				// Update previous state tracking
+				this.previousDefaultStates.set(device.id, isDefault);
 
-					// Auto-stop scanning if device lost default status
-					if (wasDefault && !isDefault) {
-						console.log(`Auto-stopping scanning from scanner that lost default status: ${device.id}`);
-						await this.stopScanning(device.id);
-						return; // Exit early, no need to check start conditions
-					}
+				// Auto-stop scanning if THIS SPECIFIC DEVICE lost default status (regardless of current deviceType)
+				if (wasDefault && !isDefault) {
+					console.log(`Auto-stopping scanning from device that lost default status: ${device.id}`);
+					await this.stopScanning(device.id);
+					return; // Exit early, no need to check start conditions
+				}
+
+				// Only process auto-start logic for scanner devices
+				if (device.meta.deviceType === 'scanner') {
 
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
@@ -379,12 +381,12 @@ export class ScannerManager {
 							);
 						}
 					}
-				} catch (error) {
-					console.error(
-						`Failed to auto-start scanning from ${device.id}:`,
-						error,
-					);
 				}
+			} catch (error) {
+				console.error(
+					`Failed to process device ${device.id}:`,
+					error,
+				);
 			}
 		});
 
