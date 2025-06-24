@@ -176,6 +176,15 @@ export function devicesWithSavedConfig(devices: TerminalDevice[]) {
 		const saved = getDeviceConfig(device.vid, device.pid);
 		if (saved) {
 			device.meta = saved;
+		} else {
+			// Reset to default metadata when no config exists (after deletion)
+			device.meta = {
+				deviceType: device.capabilities.includes('write') ? 'printer' : 'unassigned',
+				baudrate: device.capabilities.includes('read') ? 9600 : 'not-supported',
+				setToDefault: false,
+				brand: '',
+				model: '',
+			};
 		}
 		return device;
 	});
