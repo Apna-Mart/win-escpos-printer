@@ -345,19 +345,13 @@ export class DeviceManager {
 	async deleteAllDeviceConfigs(): Promise<boolean> {
 		// Get current devices before deleting configs
 		const currentDevices = Array.from(this.devices.values());
-		
-		const result = await this.configService.deleteAllDeviceConfigs();
-		if (result) {
-			// Refresh each device individually to trigger proper metadata change events
-			// This ensures auto-stop logic works the same as individual deleteDeviceConfig
-			const deviceVidPids = new Set(currentDevices.map(d => `${d.vid}:${d.pid}`));
-			
-			for (const vidPidKey of deviceVidPids) {
-				const [vid, pid] = vidPidKey.split(':');
-				await this.refreshDeviceConfig(vid, pid);
-			}
+		const deviceVidPids = new Set(currentDevices.map(d => `${d.vid}:${d.pid}`));
+		for (const vidPidKey of deviceVidPids) {
+			const [vid, pid] = vidPidKey.split(':');
+			await this.configService.deleteDeviceConfig(vid, pid)
+			await this.refreshDeviceConfig(vid, pid);
 		}
-		return result;
+		return true;
 	}
 
 	async setDeviceAsDefault(deviceId: string): Promise<boolean> {
