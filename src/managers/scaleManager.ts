@@ -14,6 +14,7 @@ export class ScaleManager {
 	private persistentCallbacks = new Map<string, WeightDataCallback[]>(); // Device-specific persistent callbacks
 	private globalWeightCallbacks: WeightDataCallback[] = []; // Global weight callbacks
 	private pendingDefaultCallbacks: WeightDataCallback[] = []; // Callbacks waiting for default scale
+	private previousDefaultStates = new Map<string, boolean>(); // Track previous default states
 	private retryOptions: Partial<RetryOptions>;
 
 	constructor(
@@ -309,6 +310,20 @@ export class ScaleManager {
 		this.deviceManager.onDeviceConnect(async (device) => {
 			if (device.meta.deviceType === 'scale') {
 				try {
+					// Check previous default state to detect status changes
+					const wasDefault = this.previousDefaultStates.get(device.id) ?? false;
+					const isDefault = device.meta.setToDefault ?? false;
+
+					// Update previous state tracking
+					this.previousDefaultStates.set(device.id, isDefault);
+
+					// Auto-stop reading if device lost default status
+					if (wasDefault && !isDefault) {
+						console.log(`Auto-stopping reading from scale that lost default status: ${device.id}`);
+						await this.stopReading(device.id);
+						return; // Exit early, no need to check start conditions
+					}
+
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
 						this.persistentCallbacks.has(device.id) &&
@@ -316,14 +331,14 @@ export class ScaleManager {
 
 					// Check if this is the default scale and has pending default callbacks
 					const isDefaultWithPendingCallbacks =
-						device.meta.setToDefault && this.pendingDefaultCallbacks.length > 0;
+						isDefault && this.pendingDefaultCallbacks.length > 0;
 
 					// Check if there are global callbacks waiting
 					const hasGlobalCallbacks = this.globalWeightCallbacks.length > 0;
 
 					// If this device becomes the default scale, move pending callbacks to device-specific storage
 					if (
-						device.meta.setToDefault &&
+						isDefault &&
 						this.pendingDefaultCallbacks.length > 0
 					) {
 						if (!this.persistentCallbacks.has(device.id)) {
@@ -343,7 +358,7 @@ export class ScaleManager {
 						hasCallbacks ||
 						isDefaultWithPendingCallbacks ||
 						hasGlobalCallbacks ||
-						device.meta.setToDefault
+						isDefault
 					) {
 						await this.startReadingDevice(device);
 
@@ -355,7 +370,7 @@ export class ScaleManager {
 							console.log(
 								`Auto-resumed reading from reconnected scale: ${device.id}`,
 							);
-						} else if (device.meta.setToDefault) {
+						} else if (isDefault) {
 							console.log(
 								`Auto-started reading from default scale: ${device.id}`,
 							);
