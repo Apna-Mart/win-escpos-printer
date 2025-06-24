@@ -14,6 +14,7 @@ export class ScannerManager {
 	private persistentCallbacks = new Map<string, ScanDataCallback[]>(); // Device-specific persistent callbacks
 	private globalScanCallbacks: ScanDataCallback[] = []; // Global scan callbacks
 	private pendingDefaultCallbacks: ScanDataCallback[] = []; // Callbacks waiting for default scanner
+	private previousDefaultStates = new Map<string, boolean>(); // Track previous default states
 	private retryOptions: Partial<RetryOptions>;
 
 	constructor(
@@ -312,6 +313,20 @@ export class ScannerManager {
 		this.deviceManager.onDeviceConnect(async (device) => {
 			if (device.meta.deviceType === 'scanner') {
 				try {
+					// Check previous default state to detect status changes
+					const wasDefault = this.previousDefaultStates.get(device.id) ?? false;
+					const isDefault = device.meta.setToDefault ?? false;
+
+					// Update previous state tracking
+					this.previousDefaultStates.set(device.id, isDefault);
+
+					// Auto-stop scanning if device lost default status
+					if (wasDefault && !isDefault) {
+						console.log(`Auto-stopping scanning from scanner that lost default status: ${device.id}`);
+						await this.stopScanning(device.id);
+						return; // Exit early, no need to check start conditions
+					}
+
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
 						this.persistentCallbacks.has(device.id) &&
@@ -319,14 +334,14 @@ export class ScannerManager {
 
 					// Check if this is the default scanner and has pending default callbacks
 					const isDefaultWithPendingCallbacks =
-						device.meta.setToDefault && this.pendingDefaultCallbacks.length > 0;
+						isDefault && this.pendingDefaultCallbacks.length > 0;
 
 					// Check if there are global callbacks waiting
 					const hasGlobalCallbacks = this.globalScanCallbacks.length > 0;
 
 					// If this device becomes the default scanner, move pending callbacks to device-specific storage
 					if (
-						device.meta.setToDefault &&
+						isDefault &&
 						this.pendingDefaultCallbacks.length > 0
 					) {
 						if (!this.persistentCallbacks.has(device.id)) {
@@ -346,7 +361,7 @@ export class ScannerManager {
 						hasCallbacks ||
 						isDefaultWithPendingCallbacks ||
 						hasGlobalCallbacks ||
-						device.meta.setToDefault
+						isDefault
 					) {
 						await this.startScanningDevice(device);
 
@@ -358,7 +373,7 @@ export class ScannerManager {
 							console.log(
 								`Auto-resumed scanning from reconnected scanner: ${device.id}`,
 							);
-						} else if (device.meta.setToDefault) {
+						} else if (isDefault) {
 							console.log(
 								`Auto-started scanning from default scanner: ${device.id}`,
 							);
