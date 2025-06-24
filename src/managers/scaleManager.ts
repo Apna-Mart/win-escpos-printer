@@ -1,6 +1,7 @@
 import type { ReadableDevice } from '../adaptor/deviceAdaptor';
 import { WeightScaleAdapter } from '../adaptor/weightScaleAdaptor';
 import { updateDeviceConfig } from '../core/deviceConfig';
+import type { RetryOptions } from '../core/retryUtils';
 import type { BaudRate, TerminalDevice } from '../core/types';
 import type { DeviceManager } from './deviceManager';
 
@@ -13,9 +14,14 @@ export class ScaleManager {
 	private persistentCallbacks = new Map<string, WeightDataCallback[]>(); // Device-specific persistent callbacks
 	private globalWeightCallbacks: WeightDataCallback[] = []; // Global weight callbacks
 	private pendingDefaultCallbacks: WeightDataCallback[] = []; // Callbacks waiting for default scale
+	private retryOptions: Partial<RetryOptions>;
 
-	constructor(deviceManager: DeviceManager) {
+	constructor(
+		deviceManager: DeviceManager,
+		retryOptions: Partial<RetryOptions> = {},
+	) {
 		this.deviceManager = deviceManager;
+		this.retryOptions = retryOptions;
 		this.setupEventListeners();
 	}
 
@@ -59,7 +65,7 @@ export class ScaleManager {
 	}
 
 	private storeCallbackForWhenDefaultConnects(
-		deviceType: 'scale',
+		_deviceType: 'scale',
 		callback: WeightDataCallback,
 	): void {
 		this.pendingDefaultCallbacks.push(callback);
@@ -176,7 +182,7 @@ export class ScaleManager {
 				device.meta.baudrate = baudRate;
 			}
 
-			const adapter = new WeightScaleAdapter(device);
+			const adapter = new WeightScaleAdapter(device, this.retryOptions);
 
 			adapter.onError((error) => {
 				console.error(`Scale adapter error for ${device.id}:`, error);
@@ -261,7 +267,7 @@ export class ScaleManager {
 			throw new Error(`Device ${deviceId} is not a scale`);
 		}
 
-		return new Promise(async (resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				this.removeCallback(deviceId, oneTimeCallback);
 				reject(new Error(`Weight reading timeout after ${timeoutMs}ms`));
@@ -273,12 +279,10 @@ export class ScaleManager {
 				resolve(data);
 			};
 
-			try {
-				await this.readFromDevice(deviceId, oneTimeCallback);
-			} catch (error) {
+			this.readFromDevice(deviceId, oneTimeCallback).catch((error) => {
 				clearTimeout(timeout);
 				reject(error);
-			}
+			});
 		});
 	}
 
@@ -308,7 +312,7 @@ export class ScaleManager {
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
 						this.persistentCallbacks.has(device.id) &&
-						this.persistentCallbacks.get(device.id)!.length > 0;
+						this.persistentCallbacks.get(device.id)?.length > 0;
 
 					// Check if this is the default scale and has pending default callbacks
 					const isDefaultWithPendingCallbacks =
@@ -326,11 +330,11 @@ export class ScaleManager {
 							this.persistentCallbacks.set(device.id, []);
 						}
 						this.persistentCallbacks
-							.get(device.id)!
-							.push(...this.pendingDefaultCallbacks);
+							.get(device.id)
+							?.push(...this.pendingDefaultCallbacks);
 						this.pendingDefaultCallbacks = []; // Clear pending callbacks
 						console.log(
-							`Moved ${this.persistentCallbacks.get(device.id)!.length} pending callbacks to default scale: ${device.id}`,
+							`Moved ${this.persistentCallbacks.get(device.id)?.length} pending callbacks to default scale: ${device.id}`,
 						);
 					}
 
