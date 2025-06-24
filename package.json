@@ -21,7 +21,7 @@
   "scripts": {
     "example": "tsx watch example.ts",
     "build": "node-gyp rebuild && tsc",
-    "check": "biome check --write src",
+    "check": "biome check --write src && tsc --noEmit",
     "clean": "node-gyp clean",
     "install": "node-gyp rebuild",
     "prepare": "npm run clean && npm run build",
