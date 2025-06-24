@@ -308,21 +308,23 @@ export class ScaleManager {
 	private setupEventListeners(): void {
 		// Handle device connections
 		this.deviceManager.onDeviceConnect(async (device) => {
-			if (device.meta.deviceType === 'scale') {
-				try {
-					// Check previous default state to detect status changes
-					const wasDefault = this.previousDefaultStates.get(device.id) ?? false;
-					const isDefault = device.meta.setToDefault ?? false;
+			try {
+				// Check previous default state to detect status changes - FOR ANY DEVICE
+				const wasDefault = this.previousDefaultStates.get(device.id) ?? false;
+				const isDefault = device.meta.setToDefault ?? false;
 
-					// Update previous state tracking
-					this.previousDefaultStates.set(device.id, isDefault);
+				// Update previous state tracking
+				this.previousDefaultStates.set(device.id, isDefault);
 
-					// Auto-stop reading if device lost default status
-					if (wasDefault && !isDefault) {
-						console.log(`Auto-stopping reading from scale that lost default status: ${device.id}`);
-						await this.stopReading(device.id);
-						return; // Exit early, no need to check start conditions
-					}
+				// Auto-stop reading if THIS SPECIFIC DEVICE lost default status (regardless of current deviceType)
+				if (wasDefault && !isDefault) {
+					console.log(`Auto-stopping reading from device that lost default status: ${device.id}`);
+					await this.stopReading(device.id);
+					return; // Exit early, no need to check start conditions
+				}
+
+				// Only process auto-start logic for scale devices
+				if (device.meta.deviceType === 'scale') {
 
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
@@ -376,12 +378,12 @@ export class ScaleManager {
 							);
 						}
 					}
-				} catch (error) {
-					console.error(
-						`Failed to auto-start reading from ${device.id}:`,
-						error,
-					);
 				}
+			} catch (error) {
+				console.error(
+					`Failed to process device ${device.id}:`,
+					error,
+				);
 			}
 		});
 
