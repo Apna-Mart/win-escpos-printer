@@ -1,5 +1,6 @@
 import assert from 'node:assert';
 import { SerialPort } from 'serialport';
+import { type RetryOptions, withExponentialBackoff } from '../core/retryUtils';
 import type { TerminalDevice } from '../core/types';
 import type { ReadableDevice } from './deviceAdaptor';
 
@@ -8,8 +9,12 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 	private isOpen = false;
 	private dataCallbacks: Set<(data: Buffer | string) => void> = new Set();
 	private dataHandler?: (data: Buffer) => void;
+	private retryOptions: Partial<RetryOptions>;
 
-	constructor(public terminalDevice: TerminalDevice) {
+	constructor(
+		public terminalDevice: TerminalDevice,
+		retryOptions: Partial<RetryOptions> = {},
+	) {
 		assert(
 			terminalDevice.meta.deviceType === 'scanner',
 			'Terminal device is not a barcode scanner',
@@ -26,6 +31,7 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 			endOnClose: true,
 			autoOpen: false,
 		});
+		this.retryOptions = retryOptions;
 	}
 
 	async open() {
@@ -33,32 +39,34 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 			return Promise.resolve();
 		}
 
-		return new Promise<void>((resolve, reject) => {
-			this.device.open((err) => {
-				if (err) {
-					reject(err);
-					return;
-				}
+		return withExponentialBackoff(async () => {
+			return new Promise<void>((resolve, reject) => {
+				this.device.open((err) => {
+					if (err) {
+						reject(err);
+						return;
+					}
 
-				// Set up parser to handle scanned barcodes
-				this.dataHandler = (data: Buffer) => {
-					const barcode = data.toString().trim();
-					if (barcode && this.dataCallbacks.size > 0) {
-						for (const callback of this.dataCallbacks) {
-							try {
-								callback(barcode);
-							} catch (error) {
-								console.error('Error in barcode callback:', error);
+					// Set up parser to handle scanned barcodes
+					this.dataHandler = (data: Buffer) => {
+						const barcode = data.toString().trim();
+						if (barcode && this.dataCallbacks.size > 0) {
+							for (const callback of this.dataCallbacks) {
+								try {
+									callback(barcode);
+								} catch (error) {
+									console.error('Error in barcode callback:', error);
+								}
 							}
 						}
-					}
-				};
-				this.device.on('data', this.dataHandler);
+					};
+					this.device.on('data', this.dataHandler);
 
-				this.isOpen = true;
-				resolve();
+					this.isOpen = true;
+					resolve();
+				});
 			});
-		});
+		}, this.retryOptions);
 	}
 
 	async close() {
@@ -66,7 +74,7 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 			return Promise.resolve();
 		}
 
-		return new Promise<void>((resolve, reject) => {
+		return new Promise<void>((resolve, _reject) => {
 			// Remove data handler to prevent memory leaks
 			if (this.dataHandler) {
 				this.device.removeAllListeners('data');

@@ -162,7 +162,9 @@ Thank you!
 			// Use existing printToDevice method
 			await this.printToDevice(printerDevice.id, testContent, false);
 
-			console.log(`Test print completed successfully on device: ${printerDevice.id}`);
+			console.log(
+				`Test print completed successfully on device: ${printerDevice.id}`,
+			);
 			return { success: true };
 		} catch (error) {
 			console.error(`Error in testPrint: ${error}`);

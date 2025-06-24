@@ -1,6 +1,7 @@
 import { BarcodeScannerAdapter } from '../adaptor/barcodeScannerAdaptor';
 import type { ReadableDevice } from '../adaptor/deviceAdaptor';
 import { updateDeviceConfig } from '../core/deviceConfig';
+import type { RetryOptions } from '../core/retryUtils';
 import type { BaudRate, TerminalDevice } from '../core/types';
 import type { DeviceManager } from './deviceManager';
 
@@ -13,9 +14,14 @@ export class ScannerManager {
 	private persistentCallbacks = new Map<string, ScanDataCallback[]>(); // Device-specific persistent callbacks
 	private globalScanCallbacks: ScanDataCallback[] = []; // Global scan callbacks
 	private pendingDefaultCallbacks: ScanDataCallback[] = []; // Callbacks waiting for default scanner
+	private retryOptions: Partial<RetryOptions>;
 
-	constructor(deviceManager: DeviceManager) {
+	constructor(
+		deviceManager: DeviceManager,
+		retryOptions: Partial<RetryOptions> = {},
+	) {
 		this.deviceManager = deviceManager;
+		this.retryOptions = retryOptions;
 		this.setupEventListeners();
 	}
 
@@ -59,7 +65,7 @@ export class ScannerManager {
 	}
 
 	private storeCallbackForWhenDefaultConnects(
-		deviceType: 'scanner',
+		_deviceType: 'scanner',
 		callback: ScanDataCallback,
 	): void {
 		this.pendingDefaultCallbacks.push(callback);
@@ -176,7 +182,7 @@ export class ScannerManager {
 				device.meta.baudrate = baudRate;
 			}
 
-			const adapter = new BarcodeScannerAdapter(device);
+			const adapter = new BarcodeScannerAdapter(device, this.retryOptions);
 
 			adapter.onError((error) => {
 				console.error(`Scanner adapter error for ${device.id}:`, error);
@@ -264,7 +270,7 @@ export class ScannerManager {
 			throw new Error(`Device ${deviceId} is not a scanner`);
 		}
 
-		return new Promise(async (resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				this.removeCallback(deviceId, oneTimeCallback);
 				reject(new Error(`Scan reading timeout after ${timeoutMs}ms`));
@@ -276,12 +282,10 @@ export class ScannerManager {
 				resolve(data);
 			};
 
-			try {
-				await this.scanFromDevice(deviceId, oneTimeCallback);
-			} catch (error) {
+			this.scanFromDevice(deviceId, oneTimeCallback).catch((error) => {
 				clearTimeout(timeout);
 				reject(error);
-			}
+			});
 		});
 	}
 
@@ -311,7 +315,7 @@ export class ScannerManager {
 					// Check if this device has persistent callbacks waiting
 					const hasCallbacks =
 						this.persistentCallbacks.has(device.id) &&
-						this.persistentCallbacks.get(device.id)!.length > 0;
+						this.persistentCallbacks.get(device.id)?.length > 0;
 
 					// Check if this is the default scanner and has pending default callbacks
 					const isDefaultWithPendingCallbacks =
@@ -329,11 +333,11 @@ export class ScannerManager {
 							this.persistentCallbacks.set(device.id, []);
 						}
 						this.persistentCallbacks
-							.get(device.id)!
-							.push(...this.pendingDefaultCallbacks);
+							.get(device.id)
+							?.push(...this.pendingDefaultCallbacks);
 						this.pendingDefaultCallbacks = []; // Clear pending callbacks
 						console.log(
-							`Moved ${this.persistentCallbacks.get(device.id)!.length} pending callbacks to default scanner: ${device.id}`,
+							`Moved ${this.persistentCallbacks.get(device.id)?.length} pending callbacks to default scanner: ${device.id}`,
 						);
 					}
 

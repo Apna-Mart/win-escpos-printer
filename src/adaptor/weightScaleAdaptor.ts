@@ -1,5 +1,6 @@
 import assert from 'node:assert';
 import { ReadlineParser, SerialPort } from 'serialport';
+import { type RetryOptions, withExponentialBackoff } from '../core/retryUtils';
 import type { TerminalDevice } from '../core/types';
 import type { ReadableDevice } from './deviceAdaptor';
 
@@ -9,8 +10,12 @@ export class WeightScaleAdapter implements ReadableDevice {
 	private isOpen = false;
 	private dataCallbacks: Set<(data: Buffer | string) => void> = new Set();
 	private dataHandler?: (data: string) => void;
+	private retryOptions: Partial<RetryOptions>;
 
-	constructor(public terminalDevice: TerminalDevice) {
+	constructor(
+		public terminalDevice: TerminalDevice,
+		retryOptions: Partial<RetryOptions> = {},
+	) {
 		assert(
 			terminalDevice.meta.deviceType === 'scale',
 			'Terminal device is not a weight scale',
@@ -28,6 +33,7 @@ export class WeightScaleAdapter implements ReadableDevice {
 			autoOpen: false,
 		});
 		this.parser = this.device.pipe(new ReadlineParser({ delimiter: '\r\n' }));
+		this.retryOptions = retryOptions;
 	}
 
 	async open() {
@@ -35,32 +41,34 @@ export class WeightScaleAdapter implements ReadableDevice {
 			return Promise.resolve();
 		}
 
-		return new Promise<void>((resolve, reject) => {
-			this.device.open((err) => {
-				if (err) {
-					reject(err);
-					return;
-				}
+		return withExponentialBackoff(async () => {
+			return new Promise<void>((resolve, reject) => {
+				this.device.open((err) => {
+					if (err) {
+						reject(err);
+						return;
+					}
 
-				// Set up parser to handle weight data
-				this.dataHandler = (data: string) => {
-					const weight = data.trim();
-					if (weight && this.dataCallbacks.size > 0) {
-						for (const callback of this.dataCallbacks) {
-							try {
-								callback(weight);
-							} catch (error) {
-								console.error('Error in weight callback:', error);
+					// Set up parser to handle weight data
+					this.dataHandler = (data: string) => {
+						const weight = data.trim();
+						if (weight && this.dataCallbacks.size > 0) {
+							for (const callback of this.dataCallbacks) {
+								try {
+									callback(weight);
+								} catch (error) {
+									console.error('Error in weight callback:', error);
+								}
 							}
 						}
-					}
-				};
-				this.parser.on('data', this.dataHandler);
+					};
+					this.parser.on('data', this.dataHandler);
 
-				this.isOpen = true;
-				resolve();
+					this.isOpen = true;
+					resolve();
+				});
 			});
-		});
+		}, this.retryOptions);
 	}
 
 	async close() {
@@ -68,7 +76,7 @@ export class WeightScaleAdapter implements ReadableDevice {
 			return Promise.resolve();
 		}
 
-		return new Promise<void>((resolve, reject) => {
+		return new Promise<void>((resolve, _reject) => {
 			// Remove data handler to prevent memory leaks
 			if (this.dataHandler) {
 				this.parser.removeAllListeners('data');
