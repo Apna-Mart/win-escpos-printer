@@ -6,9 +6,9 @@ export interface RetryOptions {
 }
 
 export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
-	maxAttempts: 5,
-	baseDelayMs: 1000, // 1 second
-	maxDelayMs: 30000, // 30 seconds
+	maxAttempts: 10,
+	baseDelayMs: 200, // 1/5 second
+	maxDelayMs: 5000, // 5 seconds
 	multiplier: 2,
 };
 
