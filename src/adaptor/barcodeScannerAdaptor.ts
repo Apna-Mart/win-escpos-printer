@@ -3,17 +3,20 @@ import { SerialPort } from 'serialport';
 import { type RetryOptions, withExponentialBackoff } from '../core/retryUtils';
 import type { TerminalDevice } from '../core/types';
 import type { ReadableDevice } from './deviceAdaptor';
+import { KeepAliveHandler } from './keepAliveHandler';
 
 export class BarcodeScannerAdapter implements ReadableDevice {
-	private device: SerialPort;
-	private isOpen = false;
+	private _device: SerialPort;
+	private _isOpen = false;
 	private dataCallbacks: Set<(data: Buffer | string) => void> = new Set();
 	private dataHandler?: (data: Buffer) => void;
 	private retryOptions: Partial<RetryOptions>;
+	private keepAliveHandler: KeepAliveHandler;
 
 	constructor(
 		public terminalDevice: TerminalDevice,
 		retryOptions: Partial<RetryOptions> = {},
+		keepAliveIntervalMs = 30000,
 	) {
 		assert(
 			terminalDevice.meta.deviceType === 'scanner',
@@ -25,23 +28,24 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 			baudRate !== 'not-supported',
 			'Barcode scanner does not support baudrate change',
 		);
-		this.device = new SerialPort({
+		this._device = new SerialPort({
 			path,
 			baudRate,
 			endOnClose: true,
 			autoOpen: false,
 		});
 		this.retryOptions = retryOptions;
+		this.keepAliveHandler = new KeepAliveHandler(this, keepAliveIntervalMs);
 	}
 
 	async open() {
-		if (this.isOpen) {
+		if (this._isOpen) {
 			return Promise.resolve();
 		}
 
 		return withExponentialBackoff(async () => {
 			return new Promise<void>((resolve, reject) => {
-				this.device.open((err) => {
+				this._device.open((err) => {
 					if (err) {
 						reject(err);
 						return;
@@ -60,9 +64,12 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 							}
 						}
 					};
-					this.device.on('data', this.dataHandler);
+					this._device.on('data', this.dataHandler);
 
-					this.isOpen = true;
+					// Start keep-alive mechanism
+					this.keepAliveHandler.start();
+
+					this._isOpen = true;
 					resolve();
 				});
 			});
@@ -70,19 +77,22 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 	}
 
 	async close() {
-		if (!this.isOpen) {
+		if (!this._isOpen) {
 			return Promise.resolve();
 		}
 
 		return new Promise<void>((resolve, _reject) => {
+			// Stop keep-alive mechanism
+			this.keepAliveHandler.stop();
+
 			// Remove data handler to prevent memory leaks
 			if (this.dataHandler) {
-				this.device.removeAllListeners('data');
+				this._device.removeAllListeners('data');
 				this.dataHandler = undefined;
 			}
 
-			this.device.close(() => {
-				this.isOpen = false;
+			this._device.close(() => {
+				this._isOpen = false;
 				resolve();
 			});
 		});
@@ -104,6 +114,14 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 	}
 
 	onError(callback: (error: Error | string) => void): void {
-		this.device.on('error', callback);
+		this._device.on('error', callback);
+	}
+
+	get isOpen(): boolean {
+		return this._isOpen;
+	}
+
+	get device(): SerialPort {
+		return this._device;
 	}
 }
