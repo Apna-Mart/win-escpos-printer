@@ -1,5 +1,6 @@
 // Core managers
 
+import { type LoggerConfig, logger } from './core/logger';
 import type { RetryOptions } from './core/retryUtils';
 import { DeviceManager } from './managers/deviceManager';
 import { PrinterManager } from './managers/printerManager';
@@ -22,6 +23,12 @@ export {
 	getConnectedDevices,
 } from './core/deviceDetector';
 export { DeviceEventEmitter } from './core/deviceEvents';
+export {
+	type LogCallback,
+	type LoggerConfig,
+	type LogLevel,
+	logger,
+} from './core/logger';
 export { PersistentStorage } from './core/persistentStorage';
 export {
 	RetryError,
@@ -40,20 +47,23 @@ export { ScannerManager } from './managers/scannerManager';
 export { DeviceConfigService } from './services/deviceConfigService';
 
 // Factory function for easy initialization
-export function createDeviceManagers(retryOptions?: {
+export function createDeviceManagers(options?: {
 	scannerRetry?: Partial<RetryOptions>;
 	scaleRetry?: Partial<RetryOptions>;
+	logging?: LoggerConfig;
 }) {
+	// Configure logging if provided
+	if (options?.logging) {
+		logger.configure(options.logging);
+	}
+
 	const deviceManager = new DeviceManager();
 	const printerManager = new PrinterManager(deviceManager);
 	const scannerManager = new ScannerManager(
 		deviceManager,
-		retryOptions?.scannerRetry,
+		options?.scannerRetry,
 	);
-	const scaleManager = new ScaleManager(
-		deviceManager,
-		retryOptions?.scaleRetry,
-	);
+	const scaleManager = new ScaleManager(deviceManager, options?.scaleRetry);
 
 	return {
 		deviceManager,

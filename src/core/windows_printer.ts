@@ -1,5 +1,6 @@
 import iconv from 'iconv-lite';
 import Jimp from 'jimp';
+import { logger } from './logger';
 
 // Types and Interfaces
 export interface PrinterInfo {
@@ -218,30 +219,22 @@ export class ThermalWindowPrinter {
 	private static nativePrinterClass: NativePrinterConstructor | null = null;
 
 	static {
-		console.log('ThermalWindowPrinter: Initializing native printer module...');
-		console.log(
-			`ThermalWindowPrinter: Platform: ${process.platform}, Architecture: ${process.arch}`,
-		);
+		logger.debug('Initializing native printer module', {
+			platform: process.platform,
+			architecture: process.arch,
+		});
 
 		try {
-			console.log(
-				'ThermalWindowPrinter: Attempting to load native module "escpos-lib"...',
-			);
+			logger.debug('Attempting to load native module "escpos-lib"');
 			const nativeModule = require('bindings')('escpos-lib');
-			console.log(
-				'ThermalWindowPrinter: Native module loaded, available exports:',
-				Object.keys(nativeModule),
-			);
+			logger.debug('Native module loaded successfully', {
+				availableExports: Object.keys(nativeModule),
+			});
 
 			ThermalWindowPrinter.nativePrinterClass = nativeModule.Printer;
-			console.log(
-				'ThermalWindowPrinter: Native printer class initialized successfully',
-			);
+			logger.debug('Native printer class initialized successfully');
 		} catch (error) {
-			console.error(
-				'ThermalWindowPrinter: Failed to load native printer module',
-			);
-			console.error('ThermalWindowPrinter: Error:', {
+			logger.error('Failed to load native printer module', {
 				message: error instanceof Error ? error.message : String(error),
 				code:
 					error && typeof error === 'object' && 'code' in error
@@ -257,9 +250,7 @@ export class ThermalWindowPrinter {
 				error instanceof Error &&
 				error.message.includes('MODULE_NOT_FOUND')
 			) {
-				console.error(
-					'ThermalWindowPrinter: Native module not found - may need to rebuild with "npm run build"',
-				);
+				logger.warn('Native module not found - may need to rebuild with "npm run build"');
 			}
 
 			ThermalWindowPrinter.nativePrinterClass = null;
@@ -277,9 +268,10 @@ export class ThermalWindowPrinter {
 				);
 
 				if (process.platform !== 'win32') {
-					console.log(
-						`ThermalPrinter: Running in compatibility mode on ${process.platform}. Printing operations will be simulated.`,
-					);
+					logger.info('Running in compatibility mode - printing operations will be simulated', {
+						platform: process.platform,
+						printerName,
+					});
 				}
 			} catch (error) {
 				throw new PrinterConnectionError(
@@ -288,18 +280,16 @@ export class ThermalWindowPrinter {
 				);
 			}
 		} else {
-			console.warn(
-				`ThermalPrinter: Native printer functionality not available. Running in compatibility mode.`,
-			);
+			logger.warn('Native printer functionality not available - running in compatibility mode', {
+				printerName,
+			});
 		}
 	}
 
 	// Static methods
 	static getAvailablePrinters(): PrinterInfo[] {
 		if (!ThermalWindowPrinter.nativePrinterClass) {
-			console.warn(
-				'getAvailablePrinters: Native printer functionality not available. Returning empty list.',
-			);
+			logger.warn('Native printer functionality not available - returning empty printer list');
 			return [];
 		}
 
@@ -322,9 +312,10 @@ export class ThermalWindowPrinter {
 		const buffer = data instanceof Buffer ? data : Buffer.from(data);
 
 		if (!this.isNativeSupported || !this.nativePrinter) {
-			console.log(
-				`ThermalPrinter: Would print ${buffer.length} bytes to printer '${this.printerName}' (compatibility mode)`,
-			);
+			logger.debug('Print operation in compatibility mode', {
+				printerName: this.printerName,
+				dataLength: buffer.length,
+			});
 			return true;
 		}
 
@@ -340,9 +331,9 @@ export class ThermalWindowPrinter {
 
 	close(): boolean {
 		if (!this.isNativeSupported || !this.nativePrinter) {
-			console.log(
-				`ThermalPrinter: Would close printer '${this.printerName}' (compatibility mode)`,
-			);
+			logger.debug('Close operation in compatibility mode', {
+				printerName: this.printerName,
+			});
 			return true;
 		}
 

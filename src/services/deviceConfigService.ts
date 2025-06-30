@@ -8,6 +8,7 @@ import {
 	saveDeviceConfig,
 	updateDeviceConfig as updateConfig,
 } from '../core/deviceConfig';
+import { logger } from '../core/logger';
 import type { DeviceConfig } from '../core/types';
 
 /**
@@ -27,11 +28,37 @@ export class DeviceConfigService {
 		pid: string,
 		config: DeviceConfig,
 	): Promise<boolean> {
+		logger.debug('Setting device configuration', {
+			vid,
+			pid,
+			deviceId: `device_${vid}_${pid}`,
+			config: {
+				deviceType: config.deviceType,
+				baudrate: config.baudrate,
+				setToDefault: config.setToDefault,
+				brand: config.brand,
+				model: config.model,
+			},
+		});
+
 		try {
 			saveDeviceConfig(vid, pid, config);
+			logger.debug('Device configuration saved successfully', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				deviceType: config.deviceType,
+				setToDefault: config.setToDefault,
+			});
 			return true;
 		} catch (error) {
-			console.error(`Failed to set device config for ${vid}:${pid}:`, error);
+			logger.error('Failed to set device configuration', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				config,
+				error,
+			});
 			return false;
 		}
 	}
@@ -48,11 +75,46 @@ export class DeviceConfigService {
 		pid: string,
 		config: Partial<DeviceConfig>,
 	): Promise<DeviceConfig | null> {
+		logger.debug('Updating device configuration', {
+			vid,
+			pid,
+			deviceId: `device_${vid}_${pid}`,
+			partialConfig: config,
+		});
+
 		try {
 			const updatedConfig = updateConfig(vid, pid, config);
+			if (updatedConfig) {
+				logger.info('Device configuration updated successfully', {
+					vid,
+					pid,
+					deviceId: `device_${vid}_${pid}`,
+					updatedConfig: {
+						deviceType: updatedConfig.deviceType,
+						baudrate: updatedConfig.baudrate,
+						setToDefault: updatedConfig.setToDefault,
+						brand: updatedConfig.brand,
+						model: updatedConfig.model,
+					},
+					originalUpdate: config,
+				});
+			} else {
+				logger.warn('Device configuration update returned null', {
+					vid,
+					pid,
+					deviceId: `device_${vid}_${pid}`,
+					partialConfig: config,
+				});
+			}
 			return updatedConfig;
 		} catch (error) {
-			console.error(`Failed to update device config for ${vid}:${pid}:`, error);
+			logger.error('Failed to update device configuration', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				partialConfig: config,
+				error,
+			});
 			return null;
 		}
 	}
@@ -64,11 +126,35 @@ export class DeviceConfigService {
 	 * @returns true if deleted, false if not found or error
 	 */
 	async deleteDeviceConfig(vid: string, pid: string): Promise<boolean> {
+		logger.debug('Deleting device configuration', {
+			vid,
+			pid,
+			deviceId: `device_${vid}_${pid}`,
+		});
+
 		try {
 			const deleted = deleteConfig(vid, pid);
+			if (deleted) {
+				logger.info('Device configuration deleted successfully', {
+					vid,
+					pid,
+					deviceId: `device_${vid}_${pid}`,
+				});
+			} else {
+				logger.warn('Device configuration not found for deletion', {
+					vid,
+					pid,
+					deviceId: `device_${vid}_${pid}`,
+				});
+			}
 			return deleted;
 		} catch (error) {
-			console.error(`Failed to delete device config for ${vid}:${pid}:`, error);
+			logger.error('Failed to delete device configuration', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				error,
+			});
 			return false;
 		}
 	}
@@ -78,11 +164,22 @@ export class DeviceConfigService {
 	 * @returns true if any configs were deleted, false otherwise
 	 */
 	async deleteAllDeviceConfigs(): Promise<boolean> {
+		logger.debug('Deleting all device configurations');
+
 		try {
+			const configCount = this.getConfiguredDeviceCount();
 			const deleted = clearAllDevices();
+
+			if (deleted) {
+				logger.info('All device configurations deleted successfully', {
+					deletedCount: configCount,
+				});
+			} else {
+				logger.warn('No device configurations found to delete');
+			}
 			return deleted;
 		} catch (error) {
-			console.error('Failed to delete all device configs:', error);
+			logger.error('Failed to delete all device configurations', { error });
 			return false;
 		}
 	}
@@ -94,10 +191,42 @@ export class DeviceConfigService {
 	 * @returns Device configuration if found, null otherwise
 	 */
 	getDeviceConfig(vid: string, pid: string): DeviceConfig | null {
+		logger.debug('Getting device configuration', {
+			vid,
+			pid,
+			deviceId: `device_${vid}_${pid}`,
+		});
+
 		try {
-			return getDeviceConfig(vid, pid);
+			const config = getDeviceConfig(vid, pid);
+			if (config) {
+				logger.debug('Device configuration found', {
+					vid,
+					pid,
+					deviceId: `device_${vid}_${pid}`,
+					config: {
+						deviceType: config.deviceType,
+						baudrate: config.baudrate,
+						setToDefault: config.setToDefault,
+						brand: config.brand,
+						model: config.model,
+					},
+				});
+			} else {
+				logger.debug('Device configuration not found', {
+					vid,
+					pid,
+					deviceId: `device_${vid}_${pid}`,
+				});
+			}
+			return config;
 		} catch (error) {
-			console.error(`Failed to get device config for ${vid}:${pid}:`, error);
+			logger.error('Failed to get device configuration', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				error,
+			});
 			return null;
 		}
 	}
@@ -107,10 +236,28 @@ export class DeviceConfigService {
 	 * @returns Record of all device configurations
 	 */
 	getAllDeviceConfigs(): Record<string, DeviceConfig> {
+		logger.debug('Getting all device configurations');
+
 		try {
-			return getAllDeviceConfig();
+			const configs = getAllDeviceConfig();
+			const configCount = Object.keys(configs).length;
+			const deviceTypes = Object.values(configs).reduce(
+				(acc, config) => {
+					acc[config.deviceType] = (acc[config.deviceType] || 0) + 1;
+					return acc;
+				},
+				{} as Record<string, number>,
+			);
+
+			logger.debug('All device configurations retrieved', {
+				configCount,
+				deviceTypes,
+				configKeys: Object.keys(configs),
+			});
+
+			return configs;
 		} catch (error) {
-			console.error('Failed to get all device configs:', error);
+			logger.error('Failed to get all device configurations', { error });
 			return {};
 		}
 	}
@@ -122,10 +269,28 @@ export class DeviceConfigService {
 	 * @returns true if device has config, false otherwise
 	 */
 	hasDeviceConfig(vid: string, pid: string): boolean {
+		logger.debug('Checking if device has configuration', {
+			vid,
+			pid,
+			deviceId: `device_${vid}_${pid}`,
+		});
+
 		try {
-			return hasDeviceConfig(vid, pid);
+			const hasConfig = hasDeviceConfig(vid, pid);
+			logger.debug('Device configuration check result', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				hasConfig,
+			});
+			return hasConfig;
 		} catch (error) {
-			console.error(`Failed to check device config for ${vid}:${pid}:`, error);
+			logger.error('Failed to check device configuration', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				error,
+			});
 			return false;
 		}
 	}
@@ -135,10 +300,14 @@ export class DeviceConfigService {
 	 * @returns Number of devices with saved configurations
 	 */
 	getConfiguredDeviceCount(): number {
+		logger.debug('Getting configured device count');
+
 		try {
-			return getDeviceCount();
+			const count = getDeviceCount();
+			logger.debug('Configured device count retrieved', { count });
+			return count;
 		} catch (error) {
-			console.error('Failed to get device count:', error);
+			logger.error('Failed to get device count', { error });
 			return 0;
 		}
 	}
@@ -155,13 +324,42 @@ export class DeviceConfigService {
 		pid: string,
 		deviceType: string,
 	): Promise<boolean> {
+		logger.debug('Setting device as default', {
+			vid,
+			pid,
+			deviceId: `device_${vid}_${pid}`,
+			deviceType,
+		});
+
 		try {
 			// First, unset any existing default for this device type
 			const allConfigs = this.getAllDeviceConfigs();
-			for (const [key, config] of Object.entries(allConfigs)) {
+			const existingDefaults = Object.entries(allConfigs).filter(
+				([_, config]) =>
+					config.deviceType === deviceType && config.setToDefault,
+			);
+
+			logger.debug('Found existing default devices for type', {
+				deviceType,
+				existingDefaultCount: existingDefaults.length,
+				existingDefaults: existingDefaults.map(([key, config]) => ({
+					key,
+					deviceType: config.deviceType,
+					brand: config.brand,
+					model: config.model,
+				})),
+			});
+
+			for (const [key, config] of existingDefaults) {
 				if (config.deviceType === deviceType && config.setToDefault) {
 					const [existingVid, existingPid] = key.split(':');
 					if (existingVid !== vid || existingPid !== pid) {
+						logger.debug('Unsetting existing default device', {
+							existingVid,
+							existingPid,
+							existingDeviceId: `device_${existingVid}_${existingPid}`,
+							deviceType,
+						});
 						await this.updateDeviceConfig(existingVid, existingPid, {
 							setToDefault: false,
 						});
@@ -170,12 +368,41 @@ export class DeviceConfigService {
 			}
 
 			// Set this device as default
+			logger.debug('Setting new device as default', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				deviceType,
+			});
 			const result = await this.updateDeviceConfig(vid, pid, {
 				setToDefault: true,
 			});
+
+			if (result !== null) {
+				logger.info('Device set as default successfully', {
+					vid,
+					pid,
+					deviceId: `device_${vid}_${pid}`,
+					deviceType,
+					unsetPreviousDefaults: existingDefaults.length,
+				});
+			} else {
+				logger.error('Failed to set device as default - update returned null', {
+					vid,
+					pid,
+					deviceId: `device_${vid}_${pid}`,
+					deviceType,
+				});
+			}
 			return result !== null;
 		} catch (error) {
-			console.error(`Failed to set device ${vid}:${pid} as default:`, error);
+			logger.error('Failed to set device as default', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				deviceType,
+				error,
+			});
 			return false;
 		}
 	}
@@ -187,13 +414,42 @@ export class DeviceConfigService {
 	 * @returns true if successful, false otherwise
 	 */
 	async unsetDeviceAsDefault(vid: string, pid: string): Promise<boolean> {
+		logger.debug('Unsetting device as default', {
+			vid,
+			pid,
+			deviceId: `device_${vid}_${pid}`,
+		});
+
 		try {
 			const result = await this.updateDeviceConfig(vid, pid, {
 				setToDefault: false,
 			});
+
+			if (result !== null) {
+				logger.info('Device unset as default successfully', {
+					vid,
+					pid,
+					deviceId: `device_${vid}_${pid}`,
+					deviceType: result.deviceType,
+				});
+			} else {
+				logger.error(
+					'Failed to unset device as default - update returned null',
+					{
+						vid,
+						pid,
+						deviceId: `device_${vid}_${pid}`,
+					},
+				);
+			}
 			return result !== null;
 		} catch (error) {
-			console.error(`Failed to unset device ${vid}:${pid} as default:`, error);
+			logger.error('Failed to unset device as default', {
+				vid,
+				pid,
+				deviceId: `device_${vid}_${pid}`,
+				error,
+			});
 			return false;
 		}
 	}

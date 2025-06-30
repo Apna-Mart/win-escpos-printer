@@ -8,6 +8,7 @@ import {
 	type DeviceDisconnectCallback,
 	DeviceEventEmitter,
 } from '../core/deviceEvents';
+import { logger } from '../core/logger';
 import type { DeviceConfig, DeviceType, TerminalDevice } from '../core/types';
 import { DeviceConfigService } from '../services/deviceConfigService';
 
@@ -18,6 +19,8 @@ export class DeviceManager {
 	private refreshInProgress = false;
 	private pendingRefresh = false;
 	private usbListenersSetup = false;
+	private lastRefreshTime = 0;
+	private readonly REFRESH_DEBOUNCE_MS = 500; // 500ms debounce
 	private configService = new DeviceConfigService();
 
 	/**
@@ -29,37 +32,58 @@ export class DeviceManager {
 	}
 
 	async start(): Promise<void> {
-		if (this.isRunning) return;
+		if (this.isRunning) {
+			logger.debug('DeviceManager already running, skipping start');
+			return;
+		}
+
+		logger.info('Starting DeviceManager...');
+		logger.debug('Performing initial device scan');
 
 		// Initial device scan
 		await this.refreshDevices();
 
 		// Setup USB monitoring (only once)
 		if (!this.usbListenersSetup) {
+			logger.debug('Setting up USB event listeners');
 			this.setupUSBListeners();
 			this.usbListenersSetup = true;
 		}
 
 		this.isRunning = true;
+		logger.info('DeviceManager started successfully', {
+			deviceCount: this.devices.size,
+		});
 	}
 
 	async stop(): Promise<void> {
-		if (!this.isRunning) return;
+		if (!this.isRunning) {
+			logger.debug('DeviceManager not running, skipping stop');
+			return;
+		}
+
+		logger.info('Stopping DeviceManager...');
 
 		// Remove USB listeners
 		if (this.usbListenersSetup) {
+			logger.debug('Removing USB event listeners');
 			usb.removeAllListeners('attach');
 			usb.removeAllListeners('detach');
 			this.usbListenersSetup = false;
 		}
 
 		// Clear events
+		logger.debug('Clearing event listeners and device cache');
 		this.events.clear();
 
 		// Clear device cache
+		const deviceCount = this.devices.size;
 		this.devices.clear();
 
 		this.isRunning = false;
+		logger.info('DeviceManager stopped successfully', {
+			clearedDevices: deviceCount,
+		});
 	}
 
 	onDeviceConnect(callback: DeviceConnectCallback): void {
@@ -115,14 +139,28 @@ export class DeviceManager {
 		this.pendingRefresh = false;
 
 		try {
+			logger.debug('Starting device refresh operation');
 			const detectedDevices = await getConnectedDevices();
+			logger.debug('Detected connected devices', {
+				count: detectedDevices.length,
+			});
+
 			const devicesWithConfig = devicesWithSavedConfig(detectedDevices);
+			logger.debug('Devices with configuration', {
+				count: devicesWithConfig.length,
+			});
 
 			// Check for new devices
 			for (const device of devicesWithConfig) {
 				if (!this.devices.has(device.id)) {
 					this.devices.set(device.id, device);
 					this.events.emitDeviceConnect(device);
+					logger.info('New device connected', {
+						deviceId: device.id,
+						deviceType: device.meta.deviceType,
+						vid: device.vid,
+						pid: device.pid,
+					});
 				} else {
 					// Update existing device metadata
 					const existingDevice = this.devices.get(device.id);
@@ -136,6 +174,14 @@ export class DeviceManager {
 						this.devices.set(device.id, device);
 						// Emit connect event for metadata changes
 						this.events.emitDeviceConnect(device);
+						logger.debug('Device metadata updated', {
+							deviceId: device.id,
+							changes: {
+								deviceType: device.meta.deviceType,
+								setToDefault: device.meta.setToDefault,
+								baudrate: device.meta.baudrate,
+							},
+						});
 					}
 				}
 			}
@@ -143,20 +189,34 @@ export class DeviceManager {
 			// Check for disconnected devices
 			const currentDeviceIds = new Set(devicesWithConfig.map((d) => d.id));
 			const deviceEntries = Array.from(this.devices.entries());
+			logger.debug('Checking for disconnected devices', {
+				currentIds: currentDeviceIds.size,
+				managedDevices: this.devices.size,
+			});
+
 			for (const [deviceId] of deviceEntries) {
 				if (!currentDeviceIds.has(deviceId)) {
+					const device = this.devices.get(deviceId);
 					this.devices.delete(deviceId);
 					this.events.emitDeviceDisconnect(deviceId);
+					logger.info('Device disconnected during refresh', {
+						deviceId,
+						deviceType: device?.meta.deviceType,
+					});
 				}
 			}
+			logger.debug('Device refresh completed', {
+				totalDevices: this.devices.size,
+			});
 		} catch (error) {
-			console.error('Error refreshing devices:', error);
+			logger.error('Error refreshing devices', error);
 		} finally {
 			this.refreshInProgress = false;
+			this.lastRefreshTime = Date.now();
 			// If another refresh was requested while this one was running, do it once more
 			if (this.pendingRefresh) {
 				this.pendingRefresh = false;
-				setTimeout(() => this.refreshDevices(), 50);
+				setTimeout(() => this.refreshDevices(), Math.max(50, this.REFRESH_DEBOUNCE_MS));
 			}
 		}
 	}
@@ -190,7 +250,11 @@ export class DeviceManager {
 				if (!this.devices.has(device.id)) {
 					this.devices.set(device.id, device);
 					this.events.emitDeviceConnect(device);
-					console.log(`Added device via targeted refresh: ${device.id}`);
+					logger.debug('Device added via targeted refresh', {
+						deviceId: device.id,
+						vid: device.vid,
+						pid: device.pid,
+					});
 				} else {
 					// Update existing device metadata
 					const existingDevice = this.devices.get(device.id);
@@ -203,12 +267,23 @@ export class DeviceManager {
 					if (hasChanges) {
 						this.devices.set(device.id, device);
 						this.events.emitDeviceConnect(device);
-						console.log(`Updated device via targeted refresh: ${device.id}`);
+						logger.debug('Device updated via targeted refresh', {
+							deviceId: device.id,
+							changes: {
+								deviceType: device.meta.deviceType,
+								setToDefault: device.meta.setToDefault,
+								baudrate: device.meta.baudrate,
+							},
+						});
 					}
 				}
 			}
 		} catch (error) {
-			console.error(`Error in targeted refresh for ${vid}:${pid}:`, error);
+			logger.error('Error in targeted device refresh', {
+				vid: `0x${vid.toString(16)}`,
+				pid: `0x${pid.toString(16)}`,
+				error,
+			});
 		}
 	}
 
@@ -234,11 +309,11 @@ export class DeviceManager {
 				if (!currentDeviceIds.has(deviceId)) {
 					this.devices.delete(deviceId);
 					this.events.emitDeviceDisconnect(deviceId);
-					console.log(`Removed disconnected device: ${deviceId}`);
+					logger.info('Device disconnected', { deviceId });
 				}
 			}
 		} catch (error) {
-			console.error('Error checking for disconnected devices:', error);
+			logger.error('Error checking for disconnected devices', error);
 		}
 	}
 
@@ -278,7 +353,11 @@ export class DeviceManager {
 					}
 					this.devices.delete(deviceId);
 					this.events.emitDeviceDisconnect(deviceId);
-					console.log(`Removed device after config deletion: ${deviceId}`);
+					logger.info('Device removed after config deletion', {
+						deviceId,
+						vid,
+						pid,
+					});
 				}
 				return;
 			}
@@ -288,11 +367,11 @@ export class DeviceManager {
 				if (this.devices.has(device.id)) {
 					const existingDevice = this.devices.get(device.id);
 					if (!existingDevice) continue;
-					
+
 					// Check if device became unassigned (config was deleted)
 					const wasConfigured = existingDevice.meta.deviceType !== 'unassigned';
 					const isNowUnassigned = device.meta.deviceType === 'unassigned';
-					
+
 					if (wasConfigured && isNowUnassigned) {
 						// Device lost its configuration - clean up scanner subscription
 						if (existingDevice.meta.deviceType === 'scanner') {
@@ -310,12 +389,20 @@ export class DeviceManager {
 					if (hasChanges) {
 						this.devices.set(device.id, device);
 						this.events.emitDeviceConnect(device);
-						console.log(`Updated device config: ${device.id}`);
+						logger.debug('Device configuration updated', {
+							deviceId: device.id,
+							deviceType: device.meta.deviceType,
+							setToDefault: device.meta.setToDefault,
+						});
 					}
 				}
 			}
 		} catch (error) {
-			console.error(`Error refreshing config for ${vid}:${pid}:`, error);
+			logger.error('Error refreshing device configuration', {
+				vid,
+				pid,
+				error,
+			});
 		}
 	}
 
@@ -328,9 +415,12 @@ export class DeviceManager {
 			// Emit device disconnect to trigger scanner manager cleanup before actual removal
 			// This ensures scanner adapters are properly closed when configs are deleted
 			this.events.emitDeviceDisconnect(deviceId);
-			console.log(`Pre-cleanup scanner subscription for device: ${deviceId}`);
+			logger.debug('Cleaning up scanner subscription', { deviceId });
 		} catch (error) {
-			console.error(`Error cleaning up scanner subscription for ${deviceId}:`, error);
+			logger.error('Error cleaning up scanner subscription', {
+				deviceId,
+				error,
+			});
 		}
 	}
 
@@ -339,7 +429,10 @@ export class DeviceManager {
 			// Targeted refresh for the specific attached device
 			const vid = device.deviceDescriptor.idVendor;
 			const pid = device.deviceDescriptor.idProduct;
-			console.log(`USB device attached: ${vid}:${pid}`);
+			logger.debug('USB device attached', {
+				vid: `0x${vid.toString(16)}`,
+				pid: `0x${pid.toString(16)}`,
+			});
 			this.refreshDeviceByVidPid(vid, pid);
 		});
 
@@ -347,7 +440,10 @@ export class DeviceManager {
 			// Check for disconnected devices
 			const vid = device.deviceDescriptor.idVendor;
 			const pid = device.deviceDescriptor.idProduct;
-			console.log(`USB device detached: ${vid}:${pid}`);
+			logger.debug('USB device detached', {
+				vid: `0x${vid.toString(16)}`,
+				pid: `0x${pid.toString(16)}`,
+			});
 			this.checkForDisconnectedDevices();
 		});
 	}

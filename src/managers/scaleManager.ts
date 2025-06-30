@@ -1,6 +1,7 @@
 import type { ReadableDevice } from '../adaptor/deviceAdaptor';
 import { WeightScaleAdapter } from '../adaptor/weightScaleAdaptor';
 import { updateDeviceConfig } from '../core/deviceConfig';
+import { logger } from '../core/logger';
 import type { RetryOptions } from '../core/retryUtils';
 import type { BaudRate, TerminalDevice } from '../core/types';
 import type { DeviceManager } from './deviceManager';
@@ -23,6 +24,7 @@ export class ScaleManager {
 	) {
 		this.deviceManager = deviceManager;
 		this.retryOptions = retryOptions;
+		logger.debug('ScaleManager initialized', { retryOptions });
 		this.setupEventListeners();
 	}
 
@@ -38,13 +40,18 @@ export class ScaleManager {
 
 		const device = this.deviceManager.getDevice(deviceId);
 		if (!device) {
-			console.log(
-				`Device ${deviceId} not found, callback queued for when device connects`,
-			);
+			logger.debug('Scale callback queued for device not yet connected', {
+				deviceId,
+				callbackCount: this.persistentCallbacks.get(deviceId)?.length || 1,
+			});
 			return; // Don't throw error, just queue the callback
 		}
 
 		if (device.meta.deviceType !== 'scale') {
+			logger.error('Attempted to read from non-scale device', {
+				deviceId,
+				deviceType: device.meta.deviceType,
+			});
 			throw new Error(`Device ${deviceId} is not a scale`);
 		}
 
@@ -54,14 +61,16 @@ export class ScaleManager {
 	async readFromDefault(callback: WeightDataCallback): Promise<void> {
 		const defaultScaleId = this.deviceManager.getDefaultDeviceId('scale');
 		if (!defaultScaleId) {
-			console.log(
-				'No default scale found, callback queued for when default scale connects',
+			logger.debug(
+				'Default scale callback queued - no default scale available',
+				{ pendingCallbacks: this.pendingDefaultCallbacks.length + 1 },
 			);
 			// Store callback with a special key for "default scale when it becomes available"
 			this.storeCallbackForWhenDefaultConnects('scale', callback);
 			return;
 		}
 
+		logger.debug('Reading from default scale', { defaultScaleId });
 		await this.readFromDevice(defaultScaleId, callback);
 	}
 
@@ -134,10 +143,18 @@ export class ScaleManager {
 					});
 
 				this.activeScales.add(device.id);
-				console.log(`Started reading from scale: ${device.id}`);
+				logger.debug('Scale reading started successfully', {
+					deviceId: device.id,
+					vid: device.vid,
+					pid: device.pid,
+					baudrate: device.meta.baudrate,
+				});
 			}
 		} catch (error) {
-			console.error(`Failed to start reading from ${device.id}:`, error);
+			logger.error('Failed to start scale reading', {
+				deviceId: device.id,
+				error,
+			});
 			throw error;
 		}
 	}
@@ -149,7 +166,7 @@ export class ScaleManager {
 			try {
 				callback(data);
 			} catch (error) {
-				console.error(`Error in weight callback for ${deviceId}:`, error);
+				logger.error('Error in weight data callback', { deviceId, error });
 			}
 		});
 
@@ -158,7 +175,7 @@ export class ScaleManager {
 			try {
 				callback(data);
 			} catch (error) {
-				console.error(`Error in global weight callback:`, error);
+				logger.error('Error in global weight callback', { error });
 			}
 		});
 	}
@@ -186,7 +203,7 @@ export class ScaleManager {
 			const adapter = new WeightScaleAdapter(device, this.retryOptions);
 
 			adapter.onError((error) => {
-				console.error(`Scale adapter error for ${device.id}:`, error);
+				logger.error('Scale adapter error', { deviceId: device.id, error });
 				this.deviceManager
 					.getEventEmitter()
 					.emitDeviceError(device.id, new Error(String(error)));
@@ -201,9 +218,15 @@ export class ScaleManager {
 
 			await adapter.open();
 			this.scaleAdapters.set(device.id, adapter);
-			console.log(`Scale adapter created for ${device.id}`);
+			logger.debug('Scale adapter created', {
+				deviceId: device.id,
+				baudrate: device.meta.baudrate,
+			});
 		} catch (error) {
-			console.error(`Failed to create scale adapter for ${device.id}:`, error);
+			logger.error('Failed to create scale adapter', {
+				deviceId: device.id,
+				error,
+			});
 			throw error;
 		}
 	}
@@ -318,9 +341,9 @@ export class ScaleManager {
 
 				// Auto-stop reading if THIS SPECIFIC DEVICE lost default status (regardless of current deviceType)
 				if (wasDefault && !isDefault) {
-					console.log(
-						`Auto-stopping reading from device that lost default status: ${device.id}`,
-					);
+					logger.info('Auto-stopping scale that lost default status', {
+						deviceId: device.id,
+					});
 					await this.stopReading(device.id);
 					return; // Exit early, no need to check start conditions
 				}
