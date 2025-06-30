@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 export interface RetryOptions {
 	maxAttempts: number;
 	baseDelayMs: number;
@@ -20,6 +22,11 @@ export class RetryError extends Error {
 	) {
 		super(message);
 		this.name = 'RetryError';
+		logger.error('Retry operation failed permanently', {
+			attempts,
+			lastError: lastError.message,
+			finalMessage: message,
+		});
 	}
 }
 
@@ -34,14 +41,36 @@ export async function withExponentialBackoff<T>(
 	options: Partial<RetryOptions> = {},
 ): Promise<T> {
 	const config = { ...DEFAULT_RETRY_OPTIONS, ...options };
+	logger.debug('Starting retry operation', {
+		maxAttempts: config.maxAttempts,
+		baseDelayMs: config.baseDelayMs,
+		maxDelayMs: config.maxDelayMs,
+		multiplier: config.multiplier,
+	});
+
 	let lastError: Error | undefined;
 	let delay = config.baseDelayMs;
 
 	for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
+		logger.debug('Retry attempt starting', {
+			attempt,
+			maxAttempts: config.maxAttempts,
+		});
 		try {
-			return await operation();
+			const result = await operation();
+			logger.debug('Retry operation succeeded', {
+				attempt,
+				totalAttempts: attempt,
+			});
+			return result;
 		} catch (error) {
 			lastError = error instanceof Error ? error : new Error(String(error));
+			logger.debug('Retry attempt failed', {
+				attempt,
+				maxAttempts: config.maxAttempts,
+				error: lastError.message,
+				nextDelayMs: delay,
+			});
 
 			// If this is the last attempt, throw the retry error
 			if (attempt === config.maxAttempts) {
@@ -52,16 +81,28 @@ export async function withExponentialBackoff<T>(
 				);
 			}
 
-			// Log retry attempt (but don't log the final failure here)
-			console.log(
-				`Port opening attempt ${attempt}/${config.maxAttempts} failed: ${lastError.message}. Retrying in ${delay}ms...`,
-			);
+			// Log retry attempt
+			logger.warn('Operation failed, retrying', {
+				attempt,
+				maxAttempts: config.maxAttempts,
+				error: lastError.message,
+				retryDelayMs: delay,
+				remainingAttempts: config.maxAttempts - attempt,
+			});
 
 			// Wait before retrying
+			logger.debug('Waiting before retry', { delayMs: delay });
 			await new Promise((resolve) => setTimeout(resolve, delay));
 
 			// Calculate next delay with exponential backoff
-			delay = Math.min(delay * config.multiplier, config.maxDelayMs);
+			const nextDelay = Math.min(delay * config.multiplier, config.maxDelayMs);
+			logger.debug('Calculated next retry delay', {
+				currentDelay: delay,
+				nextDelay,
+				multiplier: config.multiplier,
+				maxDelay: config.maxDelayMs,
+			});
+			delay = nextDelay;
 		}
 	}
 
