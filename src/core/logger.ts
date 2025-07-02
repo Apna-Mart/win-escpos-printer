@@ -1,10 +1,8 @@
-import log from 'loglevel';
-
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error';
 export type LogCallback = (
 	level: LogLevel,
 	message: string,
-	data?: unknown,
+	data?: string,
 ) => void;
 
 export interface LoggerConfig {
@@ -14,19 +12,24 @@ export interface LoggerConfig {
 
 class Logger {
 	private logCallback?: LogCallback;
-
-	constructor() {
-		// Default to 'info' level for minimal production logs
-		log.setLevel('info');
-	}
+	private isConfigured = false;
+	private currentLevel: LogLevel = 'info';
+	private readonly levelPriority: Record<LogLevel, number> = {
+		trace: 0,
+		debug: 1,
+		info: 2,
+		warn: 3,
+		error: 4,
+	};
 
 	configure(config: LoggerConfig): void {
 		if (config.level) {
-			log.setLevel(config.level);
+			this.currentLevel = config.level;
 		}
 		if (config.callback) {
 			this.logCallback = config.callback;
 		}
+		this.isConfigured = true;
 	}
 
 	private logWithCallback(
@@ -34,54 +37,55 @@ class Logger {
 		message: string,
 		data?: unknown,
 	): void {
-		if (this.logCallback) {
-			try {
-				this.logCallback(level, message, data);
-			} catch (error) {
-				// Fallback to console if callback fails
-				console.error('Logger callback failed:', error);
-			}
+		if (!this.isConfigured || !this.logCallback || !this.shouldLog(level)) {
+			return;
+		}
+
+		try {
+			const formattedData =
+				data !== undefined ? this.formatData(data) : undefined;
+			this.logCallback(level, message, formattedData);
+		} catch (_error) {
+			// Silent failure - don't log to console
 		}
 	}
 
+	private formatData(data: unknown): string {
+		try {
+			return JSON.stringify(data);
+		} catch (_error) {
+			// Fallback for non-serializable objects
+			return String(data);
+		}
+	}
+
+	private shouldLog(level: LogLevel): boolean {
+		return this.levelPriority[level] >= this.levelPriority[this.currentLevel];
+	}
+
 	trace(message: string, data?: unknown): void {
-		const formattedData = data ? JSON.stringify(data) : undefined;
-		log.trace(message, formattedData);
+		// Only call callback, no console logging
 		this.logWithCallback('trace', message, data);
 	}
 
 	debug(message: string, data?: unknown): void {
-		const formattedData = data ? JSON.stringify(data) : undefined;
-		log.debug(message, formattedData);
+		// Only call callback, no console logging
 		this.logWithCallback('debug', message, data);
 	}
 
 	info(message: string, data?: unknown): void {
-		const formattedData = data ? JSON.stringify(data) : undefined;
-		log.info(message, formattedData);
+		// Only call callback, no console logging
 		this.logWithCallback('info', message, data);
 	}
 
 	warn(message: string, data?: unknown): void {
-		const formattedData = data ? JSON.stringify(data) : undefined;
-		log.warn(message, formattedData);
+		// Only call callback, no console logging
 		this.logWithCallback('warn', message, data);
 	}
 
 	error(message: string, error?: unknown): void {
-		const formattedData = error ? JSON.stringify(error) : undefined;
-		log.error(message, formattedData);
+		// Only call callback, no console logging
 		this.logWithCallback('error', message, error);
-	}
-
-	getLevel(): LogLevel {
-		const level = log.getLevel();
-		const levelNames: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error'];
-		return levelNames[level] || 'info';
-	}
-
-	setLevel(level: LogLevel): void {
-		log.setLevel(level);
 	}
 }
 

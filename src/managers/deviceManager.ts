@@ -216,7 +216,10 @@ export class DeviceManager {
 			// If another refresh was requested while this one was running, do it once more
 			if (this.pendingRefresh) {
 				this.pendingRefresh = false;
-				setTimeout(() => this.refreshDevices(), Math.max(50, this.REFRESH_DEBOUNCE_MS));
+				setTimeout(
+					() => this.refreshDevices(),
+					Math.max(50, this.REFRESH_DEBOUNCE_MS),
+				);
 			}
 		}
 	}
@@ -503,12 +506,12 @@ export class DeviceManager {
 	async setDeviceAsDefault(deviceId: string): Promise<boolean> {
 		const device = this.getDevice(deviceId);
 		if (!device) {
-			console.error(`Device ${deviceId} not found`);
+			logger.error('Device not found', { deviceId });
 			return false;
 		}
 
 		if (device.meta.deviceType === 'unassigned') {
-			console.error(`Cannot set unassigned device ${deviceId} as default`);
+			logger.error('Cannot set unassigned device as default', { deviceId });
 			return false;
 		}
 
@@ -526,7 +529,7 @@ export class DeviceManager {
 	async unsetDeviceAsDefault(deviceId: string): Promise<boolean> {
 		const device = this.getDevice(deviceId);
 		if (!device) {
-			console.error(`Device ${deviceId} not found`);
+			logger.error('Device not found', { deviceId });
 			return false;
 		}
 

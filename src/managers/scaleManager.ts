@@ -237,7 +237,7 @@ export class ScaleManager {
 			try {
 				await adapter.close();
 			} catch (error) {
-				console.error(`Error closing scale adapter for ${deviceId}:`, error);
+				logger.error('Error closing scale adapter', { deviceId, error });
 			}
 			this.scaleAdapters.delete(deviceId);
 		}
@@ -320,10 +320,10 @@ export class ScaleManager {
 			try {
 				await this.startReadingDevice(scale);
 			} catch (error) {
-				console.error(
-					`Failed to start reading from existing scale ${scale.id}:`,
+				logger.error('Failed to start reading from existing scale', {
+					deviceId: scale.id,
 					error,
-				);
+				});
 			}
 		});
 	}
@@ -371,9 +371,11 @@ export class ScaleManager {
 							.get(device.id)
 							?.push(...this.pendingDefaultCallbacks);
 						this.pendingDefaultCallbacks = []; // Clear pending callbacks
-						console.log(
-							`Moved ${this.persistentCallbacks.get(device.id)?.length} pending callbacks to default scale: ${device.id}`,
-						);
+						logger.info('Moved pending callbacks to default scale', {
+							deviceId: device.id,
+							callbackCount:
+								this.persistentCallbacks.get(device.id)?.length || 0,
+						});
 					}
 
 					// Start reading if device has callbacks waiting or is default with setToDefault=true
@@ -386,22 +388,25 @@ export class ScaleManager {
 						await this.startReadingDevice(device);
 
 						if (isDefaultWithPendingCallbacks) {
-							console.log(
-								`Auto-started reading from new default scale: ${device.id}`,
-							);
+							logger.info('Auto-started reading from new default scale', {
+								deviceId: device.id,
+							});
 						} else if (hasCallbacks) {
-							console.log(
-								`Auto-resumed reading from reconnected scale: ${device.id}`,
-							);
+							logger.info('Auto-resumed reading from reconnected scale', {
+								deviceId: device.id,
+							});
 						} else if (isDefault) {
-							console.log(
-								`Auto-started reading from default scale: ${device.id}`,
-							);
+							logger.info('Auto-started reading from default scale', {
+								deviceId: device.id,
+							});
 						}
 					}
 				}
 			} catch (error) {
-				console.error(`Failed to process device ${device.id}:`, error);
+				logger.error('Failed to process device', {
+					deviceId: device.id,
+					error,
+				});
 			}
 		});
 

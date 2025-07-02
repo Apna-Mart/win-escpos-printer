@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { logger } from './logger';
 
 export class PersistentStorage {
 	private storagePath: string;
@@ -31,7 +32,7 @@ export class PersistentStorage {
 				this.data = JSON.parse(fileContent);
 			}
 		} catch (error) {
-			console.warn('Failed to load storage data:', error);
+			logger.warn('Failed to load storage data', error);
 			this.data = {};
 		}
 		this.isLoaded = true;
@@ -41,7 +42,7 @@ export class PersistentStorage {
 		try {
 			fs.writeFileSync(this.storagePath, JSON.stringify(this.data, null, 2));
 		} catch (error) {
-			console.error('Failed to save storage data:', error);
+			logger.error('Failed to save storage data', error);
 			throw error;
 		}
 	}

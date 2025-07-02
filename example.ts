@@ -1,9 +1,16 @@
 import { createDeviceManagers } from './src';
 
 const { deviceManager, scannerManager, scaleManager, printerManager } =
-	createDeviceManagers();
+	createDeviceManagers({
+		logging: {
+			level: 'info',
+			callback: (level, message, data) => {
+				console.log(`[${level.toUpperCase()}] ${message}`, data ? `- ${data}` : '');
+			}
+		}
+	});
 deviceManager.onDeviceConnect((_d) => {
-	console.log(`Device connected ${JSON.stringify(deviceManager.getDevices())}`);
+	// console.log(`Device connected ${JSON.stringify(deviceManager.getDevices())}`);
 });
 
 deviceManager.onDeviceDisconnect((_d) => {
@@ -39,14 +46,14 @@ deviceManager
 	.then();
 
 scannerManager.onScanData((d) => {
-	console.log(`Scan data ${JSON.stringify(d)}`);
+	// console.log(`Scan data ${JSON.stringify(d)}`);
 	printerManager.printToDefault(`Scan data: ${JSON.stringify(d)}`).catch(() => {
-		console.log('Error printing');
+		// console.log('Error printing');
 	});
 });
 
 scaleManager.onWeightData((data) => {
-	console.log(`Weight data ${JSON.stringify(data)}`);
+	// console.log(`Weight data ${JSON.stringify(data)}`);
 });
 
 deviceManager.start().then();

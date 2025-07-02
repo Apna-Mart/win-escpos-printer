@@ -250,7 +250,9 @@ export class ThermalWindowPrinter {
 				error instanceof Error &&
 				error.message.includes('MODULE_NOT_FOUND')
 			) {
-				logger.warn('Native module not found - may need to rebuild with "npm run build"');
+				logger.warn(
+					'Native module not found - may need to rebuild with "npm run build"',
+				);
 			}
 
 			ThermalWindowPrinter.nativePrinterClass = null;
@@ -268,10 +270,13 @@ export class ThermalWindowPrinter {
 				);
 
 				if (process.platform !== 'win32') {
-					logger.info('Running in compatibility mode - printing operations will be simulated', {
-						platform: process.platform,
-						printerName,
-					});
+					logger.info(
+						'Running in compatibility mode - printing operations will be simulated',
+						{
+							platform: process.platform,
+							printerName,
+						},
+					);
 				}
 			} catch (error) {
 				throw new PrinterConnectionError(
@@ -280,16 +285,21 @@ export class ThermalWindowPrinter {
 				);
 			}
 		} else {
-			logger.warn('Native printer functionality not available - running in compatibility mode', {
-				printerName,
-			});
+			logger.warn(
+				'Native printer functionality not available - running in compatibility mode',
+				{
+					printerName,
+				},
+			);
 		}
 	}
 
 	// Static methods
 	static getAvailablePrinters(): PrinterInfo[] {
 		if (!ThermalWindowPrinter.nativePrinterClass) {
-			logger.warn('Native printer functionality not available - returning empty printer list');
+			logger.warn(
+				'Native printer functionality not available - returning empty printer list',
+			);
 			return [];
 		}
 

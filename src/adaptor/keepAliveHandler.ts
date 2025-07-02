@@ -1,4 +1,5 @@
 import type { SerialPort } from 'serialport';
+import { logger } from '../core/logger';
 
 export interface KeepAliveDevice {
 	readonly isOpen: boolean;
@@ -25,11 +26,11 @@ export class KeepAliveHandler {
 				try {
 					this.device.device.write('\x05', (err) => {
 						if (err) {
-							console.error('Keep-alive write error:', err);
+							logger.error('Keep-alive write error', err);
 						}
 					});
 				} catch (error) {
-					console.error('Keep-alive error:', error);
+					logger.error('Keep-alive error', error);
 				}
 			}
 		}, this.keepAliveIntervalMs);
