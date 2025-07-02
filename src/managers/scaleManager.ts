@@ -104,6 +104,16 @@ export class ScaleManager {
 			const index = callbacks.indexOf(callback);
 			if (index > -1) {
 				callbacks.splice(index, 1);
+				
+				// Auto-stop reading if no callbacks remain for this device and no global callbacks
+				if (callbacks.length === 0 && this.globalWeightCallbacks.length === 0) {
+					this.stopReading(deviceId).catch((error) => {
+						logger.error('Failed to auto-stop reading after removing last callback', {
+							deviceId,
+							error,
+						});
+					});
+				}
 			}
 		}
 	}

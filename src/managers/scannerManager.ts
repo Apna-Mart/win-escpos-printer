@@ -107,6 +107,16 @@ export class ScannerManager {
 			const index = callbacks.indexOf(callback);
 			if (index > -1) {
 				callbacks.splice(index, 1);
+				
+				// Auto-stop scanning if no callbacks remain for this device and no global callbacks
+				if (callbacks.length === 0 && this.globalScanCallbacks.length === 0) {
+					this.stopScanning(deviceId).catch((error) => {
+						logger.error('Failed to auto-stop scanning after removing last callback', {
+							deviceId,
+							error,
+						});
+					});
+				}
 			}
 		}
 	}
