@@ -25,7 +25,6 @@ export class RetryError extends Error {
 		logger.error('Retry operation failed permanently', {
 			attempts,
 			lastError: lastError.message,
-			finalMessage: message,
 		});
 	}
 }
@@ -43,34 +42,20 @@ export async function withExponentialBackoff<T>(
 	const config = { ...DEFAULT_RETRY_OPTIONS, ...options };
 	logger.debug('Starting retry operation', {
 		maxAttempts: config.maxAttempts,
-		baseDelayMs: config.baseDelayMs,
-		maxDelayMs: config.maxDelayMs,
-		multiplier: config.multiplier,
 	});
 
 	let lastError: Error | undefined;
 	let delay = config.baseDelayMs;
 
 	for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
-		logger.debug('Retry attempt starting', {
-			attempt,
-			maxAttempts: config.maxAttempts,
-		});
 		try {
 			const result = await operation();
 			logger.debug('Retry operation succeeded', {
 				attempt,
-				totalAttempts: attempt,
 			});
 			return result;
 		} catch (error) {
 			lastError = error instanceof Error ? error : new Error(String(error));
-			logger.debug('Retry attempt failed', {
-				attempt,
-				maxAttempts: config.maxAttempts,
-				error: lastError.message,
-				nextDelayMs: delay,
-			});
 
 			// If this is the last attempt, throw the retry error
 			if (attempt === config.maxAttempts) {
@@ -86,22 +71,13 @@ export async function withExponentialBackoff<T>(
 				attempt,
 				maxAttempts: config.maxAttempts,
 				error: lastError.message,
-				retryDelayMs: delay,
-				remainingAttempts: config.maxAttempts - attempt,
 			});
 
 			// Wait before retrying
-			logger.debug('Waiting before retry', { delayMs: delay });
 			await new Promise((resolve) => setTimeout(resolve, delay));
 
 			// Calculate next delay with exponential backoff
 			const nextDelay = Math.min(delay * config.multiplier, config.maxDelayMs);
-			logger.debug('Calculated next retry delay', {
-				currentDelay: delay,
-				nextDelay,
-				multiplier: config.multiplier,
-				maxDelay: config.maxDelayMs,
-			});
 			delay = nextDelay;
 		}
 	}

@@ -24,7 +24,6 @@ export class ScannerManager {
 	) {
 		this.deviceManager = deviceManager;
 		this.retryOptions = retryOptions;
-		logger.debug('ScannerManager initialized', { retryOptions });
 		this.setupEventListeners();
 	}
 

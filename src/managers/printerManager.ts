@@ -11,7 +11,6 @@ export class PrinterManager {
 
 	constructor(deviceManager: DeviceManager) {
 		this.deviceManager = deviceManager;
-		logger.debug('PrinterManager initialized');
 		this.setupEventListeners();
 	}
 
@@ -20,9 +19,8 @@ export class PrinterManager {
 		data: string,
 		isImage = false,
 	): Promise<boolean> {
-		logger.debug('Print request initiated', {
+		logger.debug('Print request', {
 			deviceId,
-			dataLength: data.length,
 			isImage,
 		});
 
@@ -33,7 +31,7 @@ export class PrinterManager {
 		}
 
 		if (device.meta.deviceType !== 'printer') {
-			logger.error('Print failed - device is not a printer', {
+			logger.error('Device is not a printer', {
 				deviceId,
 				deviceType: device.meta.deviceType,
 			});
@@ -47,15 +45,9 @@ export class PrinterManager {
 				throw new Error(`Failed to create printer adapter for ${deviceId}`);
 			}
 
-			logger.debug('Sending data to printer', {
-				deviceId,
-				dataLength: data.length,
-				isImage,
-			});
 			await adapter.write(data, isImage);
-			logger.debug('Print completed successfully', {
+			logger.info('Print completed', {
 				deviceId,
-				dataLength: data.length,
 				isImage,
 			});
 			return true;
@@ -66,30 +58,25 @@ export class PrinterManager {
 	}
 
 	async printToDefault(data: string, isImage = false): Promise<boolean> {
-		logger.debug('Print to default printer request', {
-			dataLength: data.length,
-			isImage,
-		});
+		logger.debug('Print to default printer', { isImage });
 
 		const defaultPrinter = this.deviceManager.getDefaultDevice('printer');
 		if (!defaultPrinter) {
-			logger.error('Print to default failed - no default printer available');
+			logger.error('No default printer available');
 			throw new Error('No default printer found');
 		}
 
-		logger.debug('Using default printer', { deviceId: defaultPrinter.id });
 		return this.printToDevice(defaultPrinter.id, data, isImage);
 	}
 
 	async ensurePrinterAdapter(device: TerminalDevice): Promise<void> {
 		if (this.printerAdapters.has(device.id)) {
-			logger.debug('Printer adapter already exists', { deviceId: device.id });
 			return; // Adapter already exists
 		}
 
 		logger.debug('Creating printer adapter', {
 			deviceId: device.id,
-			currentType: device.meta.deviceType,
+			deviceType: device.meta.deviceType,
 		});
 
 		// Auto-configure device as printer if not already configured

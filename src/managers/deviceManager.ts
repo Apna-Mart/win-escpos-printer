@@ -37,51 +37,42 @@ export class DeviceManager {
 			return;
 		}
 
-		logger.info('Starting DeviceManager...');
-		logger.debug('Performing initial device scan');
-
-		// Initial device scan
+		logger.info('Starting DeviceManager');
 		await this.refreshDevices();
 
 		// Setup USB monitoring (only once)
 		if (!this.usbListenersSetup) {
-			logger.debug('Setting up USB event listeners');
 			this.setupUSBListeners();
 			this.usbListenersSetup = true;
 		}
 
 		this.isRunning = true;
-		logger.info('DeviceManager started successfully', {
+		logger.info('DeviceManager started', {
 			deviceCount: this.devices.size,
 		});
 	}
 
 	async stop(): Promise<void> {
 		if (!this.isRunning) {
-			logger.debug('DeviceManager not running, skipping stop');
 			return;
 		}
 
-		logger.info('Stopping DeviceManager...');
+		logger.info('Stopping DeviceManager');
 
 		// Remove USB listeners
 		if (this.usbListenersSetup) {
-			logger.debug('Removing USB event listeners');
 			usb.removeAllListeners('attach');
 			usb.removeAllListeners('detach');
 			this.usbListenersSetup = false;
 		}
 
-		// Clear events
-		logger.debug('Clearing event listeners and device cache');
+		// Clear events and device cache
 		this.events.clear();
-
-		// Clear device cache
 		const deviceCount = this.devices.size;
 		this.devices.clear();
 
 		this.isRunning = false;
-		logger.info('DeviceManager stopped successfully', {
+		logger.info('DeviceManager stopped', {
 			clearedDevices: deviceCount,
 		});
 	}
@@ -139,15 +130,11 @@ export class DeviceManager {
 		this.pendingRefresh = false;
 
 		try {
-			logger.debug('Starting device refresh operation');
 			const detectedDevices = await getConnectedDevices();
-			logger.debug('Detected connected devices', {
-				count: detectedDevices.length,
-			});
-
 			const devicesWithConfig = devicesWithSavedConfig(detectedDevices);
-			logger.debug('Devices with configuration', {
-				count: devicesWithConfig.length,
+			logger.debug('Device refresh - detected devices', {
+				total: detectedDevices.length,
+				configured: devicesWithConfig.length,
 			});
 
 			// Check for new devices
@@ -155,7 +142,7 @@ export class DeviceManager {
 				if (!this.devices.has(device.id)) {
 					this.devices.set(device.id, device);
 					this.events.emitDeviceConnect(device);
-					logger.info('New device connected', {
+					logger.info('Device connected', {
 						deviceId: device.id,
 						deviceType: device.meta.deviceType,
 						vid: device.vid,
@@ -176,11 +163,8 @@ export class DeviceManager {
 						this.events.emitDeviceConnect(device);
 						logger.debug('Device metadata updated', {
 							deviceId: device.id,
-							changes: {
-								deviceType: device.meta.deviceType,
-								setToDefault: device.meta.setToDefault,
-								baudrate: device.meta.baudrate,
-							},
+							deviceType: device.meta.deviceType,
+							setToDefault: device.meta.setToDefault,
 						});
 					}
 				}
@@ -199,7 +183,7 @@ export class DeviceManager {
 					const device = this.devices.get(deviceId);
 					this.devices.delete(deviceId);
 					this.events.emitDeviceDisconnect(deviceId);
-					logger.info('Device disconnected during refresh', {
+					logger.info('Device disconnected', {
 						deviceId,
 						deviceType: device?.meta.deviceType,
 					});

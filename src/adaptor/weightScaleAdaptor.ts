@@ -22,12 +22,8 @@ export class WeightScaleAdapter implements ReadableDevice {
 	) {
 		logger.debug('Creating WeightScaleAdapter', {
 			deviceId: terminalDevice.id,
-			deviceName: terminalDevice.name,
-			deviceType: terminalDevice.meta.deviceType,
 			path: terminalDevice.path,
 			baudRate: terminalDevice.meta.baudrate,
-			keepAliveIntervalMs,
-			retryOptions,
 		});
 
 		assert(
