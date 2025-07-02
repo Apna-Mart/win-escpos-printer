@@ -378,12 +378,12 @@ export class ScaleManager {
 						});
 					}
 
-					// Start reading if device has callbacks waiting or is default with setToDefault=true
+					// Start reading only if device is default AND has callbacks waiting
 					if (
-						hasCallbacks ||
+						isDefault &&
+						(hasCallbacks ||
 						isDefaultWithPendingCallbacks ||
-						hasGlobalCallbacks ||
-						isDefault
+						hasGlobalCallbacks)
 					) {
 						await this.startReadingDevice(device);
 

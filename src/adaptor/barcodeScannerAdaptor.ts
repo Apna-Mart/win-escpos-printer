@@ -102,6 +102,7 @@ export class BarcodeScannerAdapter implements ReadableDevice {
 					// Set up parser to handle scanned barcodes
 					this.dataHandler = (data: Buffer) => {
 						const barcode = data.toString().trim();
+						if(barcode === '\u0015') return;
 						logger.debug('Barcode data received', {
 							deviceId: this.terminalDevice.id,
 							rawDataLength: data.length,

@@ -380,12 +380,12 @@ export class ScannerManager {
 						});
 					}
 
-					// Start scanning if device has callbacks waiting or is default with setToDefault=true
+					// Start scanning only if device is default AND has callbacks waiting
 					if (
-						hasCallbacks ||
+						isDefault &&
+						(hasCallbacks ||
 						isDefaultWithPendingCallbacks ||
-						hasGlobalCallbacks ||
-						isDefault
+						hasGlobalCallbacks)
 					) {
 						await this.startScanningDevice(device);
 
