@@ -45,16 +45,16 @@ deviceManager
 	})
 	.then();
 
-scannerManager.onScanData((d) => {
-	// console.log(`Scan data ${JSON.stringify(d)}`);
-	printerManager.printToDefault(`Scan data: ${JSON.stringify(d)}`).catch(() => {
-		// console.log('Error printing');
-	});
-});
+// scannerManager.onScanData((d) => {
+// 	// console.log(`Scan data ${JSON.stringify(d)}`);
+// 	printerManager.printToDefault(`Scan data: ${JSON.stringify(d)}`).catch(() => {
+// 		// console.log('Error printing');
+// 	});
+// });
 
-scaleManager.onWeightData((data) => {
-	// console.log(`Weight data ${JSON.stringify(data)}`);
-});
+// scaleManager.onWeightData((data) => {
+// 	// console.log(`Weight data ${JSON.stringify(data)}`);
+// });
 
 deviceManager.start().then();
 
